@@ -46,6 +46,7 @@ from pyMBE.storage.instances.peptide import PeptideInstance
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
+from pyMBE.simulation_builder.engine_factory import EngineFactory 
 ## Reactions
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 # Utilities
@@ -88,7 +89,7 @@ class pymbe_library():
             Root path to the pyMBE package resources.
     """
 
-    def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None):
+    def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None,simulation_engine='espresso'):
         """
         Initializes the pyMBE library.
 
@@ -124,6 +125,7 @@ class pymbe_library():
                                Kw=Kw)
         
         self.db = Manager(units=self.units)
+        self.simulation_engine=EngineFactory.get_simulation_engine(engine_name=simulation_engine,db=self.db) ### Add simulation factory.
         self.lattice_builder = None
         self.root = importlib.resources.files(__package__)
 
@@ -220,7 +222,7 @@ class pymbe_library():
             bond_instance = interactions.HarmonicBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
                                                       r_0 = bond_parameters["r_0"].m_as("reduced_length"))
         elif bond_type == 'FENE':
-            bond_instance    = interactions.FeneBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
+            bond_instance = interactions.FeneBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
                                                       r_0 = bond_parameters["r_0"].m_as("reduced_length"),
                                                       d_r_max = bond_parameters["d_r_max"].m_as("reduced_length"))    
         return bond_instance
@@ -1026,6 +1028,8 @@ class pymbe_library():
                     if list_of_first_residue_positions is None:
                         central_bead_pos = None
                     else:
+                        ### This seems like a bug 
+                        ### the variable central bead pos gets assigned the same value for the lengthh of list_of_first_residue_positions
                         for item in list_of_first_residue_positions:
                             central_bead_pos = [np.array(list_of_first_residue_positions[pos_index])]
                             
@@ -1046,7 +1050,9 @@ class pymbe_library():
                     prev_central_bead_id = particle_ids_in_residue[0]
                     prev_central_bead_name = self.db.get_instance(pmb_type="particle", 
                                                                   instance_id=prev_central_bead_id).name
-                    prev_central_bead_pos = espresso_system.part.by_id(prev_central_bead_id).pos
+                    prev_central_bead_pos = self.db.get_instance(pmb_type="particle", 
+                                                                  instance_id=prev_central_bead_id).particle_position
+                    # prev_central_bead_pos = espresso_system.part.by_id(prev_central_bead_id).pos
                     first_residue = False          
                 else:
                     
@@ -1145,13 +1151,16 @@ class pymbe_library():
             
             particle_id = self.db._propose_instance_id(pmb_type="particle")
             created_pid_list.append(particle_id)
-            kwargs = dict(id=particle_id, pos=particle_position, type=es_type, q=z)
-            if fix:
-                kwargs["fix"] = 3 * [fix]
-            espresso_system.part.add(**kwargs)
+            # kwargs = dict(id=particle_id, pos=particle_position, type=es_type, q=z)
+            # if fix:
+            #     kwargs["fix"] = 3 * [fix] ### Is the fix attribute something concrete from espresso_system?
+            # espresso_system.part.add(**kwargs)
             part_inst = ParticleInstance(name=name,
                                          particle_id=particle_id,
-                                         initial_state=part_state.name)
+                                         initial_state=part_state.name,
+                                         particle_position=particle_position,
+                                         particle_label=es_type,
+                                         particle_charge=z)
             self.db._register_instance(part_inst)
                               
         return created_pid_list
@@ -1286,7 +1295,10 @@ class pymbe_library():
                                                position=central_bead_position,
                                                number_of_particles = 1)[0]
         
-        central_bead_position=espresso_system.part.by_id(central_bead_id).pos
+        central_bead_position = self.db.get_instance(pmb_type="particle", 
+                                                                  instance_id=central_bead_id).particle_position
+        # # central_bead_position=espresso_system.part.by_id(central_bead_id).pos
+
         # Assigns residue_id to the central_bead particle created.
         self.db._update_instance(pmb_type="particle",
                                  instance_id=central_bead_id,
