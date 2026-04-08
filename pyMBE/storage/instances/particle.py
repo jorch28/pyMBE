@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import Literal, Optional
+from typing import Literal, Optional,List
 from pydantic import validator
 from ..base_type import PMBBaseModel
 
@@ -56,6 +56,10 @@ class ParticleInstance(PMBBaseModel):
     name: str 
     particle_id: int
     initial_state: str
+    particle_charge: int
+    particle_label: str
+    particle_position: List[float]
+    particle_fix: Optional[List[bool]]=None
     residue_id: Optional[int] = None
     molecule_id: Optional[int] = None
     assembly_id: Optional[int] = None
