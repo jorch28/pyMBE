@@ -1,6 +1,6 @@
 from abc import ABC,abstractmethod
 
-class SimulationBuilder(ABC):
+class SimulationEngine(ABC):
     def __init__(self):
         pass
     @abstractmethod
@@ -13,5 +13,5 @@ class SimulationBuilder(ABC):
     def _get_bond_instance(self):
         return
     @abstractmethod
-    def save_molecule(self):
+    def add_instances_to_engine(self):
         return
