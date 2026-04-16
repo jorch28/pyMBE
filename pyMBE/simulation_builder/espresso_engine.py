@@ -1,13 +1,14 @@
-from base_classes import SimulationBuilder
+from pyMBE.simulation_builder.base_engine import SimulationEngine
 import espressomd
 
 
 
-class EspressoSimulation(SimulationBuilder):
-    def __init__(self,box_l,db):
+class EspressoSimulation(SimulationEngine):
+    def __init__(self,box_l,db,espresso_system,units):
         self.db=db
         self.box_l=box_l
-        self.espresso_system=espressomd.System(box_l = [self.box_l.to('reduced_length').magnitude]*3)
+        self.espresso_system=espresso_system
+        self.units=units
         pass
 
     def _check_bond_inputs(self, bond_type, bond_parameters):
@@ -69,7 +70,7 @@ class EspressoSimulation(SimulationBuilder):
                                                       d_r_max = bond_parameters["d_r_max"].m_as("reduced_length"))    
         return bond_instance
     
-    def _get_bond_instance(self, bond_template, espresso_system):
+    def _get_bond_instance(self, bond_template):
         """
         Retrieve or create a bond instance in an ESPResSo system for a given pair of particle names.
 
@@ -93,9 +94,63 @@ class EspressoSimulation(SimulationBuilder):
             bond_inst = self._create_bond_instance(bond_type=bond_template.bond_type,
                                                             bond_parameters=bond_template.get_parameters(self.units))
             self.db.espresso_bond_instances[bond_template.name]= bond_inst
-            espresso_system.bonded_inter.add(bond_inst)
+            self.espresso_system.bonded_inter.add(bond_inst)
         return bond_inst
+    
+    def _add_bond(self,particle_id1,particle_id2,bond_inst):
+        bond_tpl=self.db.get_template(name=bond_inst.name, 
+                                        pmb_type="bond")
+        espresso_bond_inst=self._get_bond_instance(bond_template=bond_tpl)
+        self.espresso_system.part.by_id(particle_id1).add_bond((espresso_bond_inst, particle_id2))
+    
+    def _add_particle(self,particle_id):
+        particle_instance=self.db.get_instance(pmb_type='particle',
+                                 instance_id=particle_id)
+        # part_tpl = self.db.get_template(pmb_type="particle",
+        #                                 name=particle_instance.name)
+        part_state = self.db.get_template(pmb_type="particle_state",
+                                        name=particle_instance.initial_state)
+        
+        if particle_instance.fix:
+            kwargs = dict(id=particle_id, pos=particle_instance.position, type=part_state.es_type, q=part_state.z,fix=particle_instance.fix)
+        else:
+            kwargs = dict(id=particle_id, pos=particle_instance.position, type=part_state.es_type, q=part_state.z)
+        
+        self.espresso_system.part.add(**kwargs)
+
     def get_box_side_length(self):
-        return self.Box_L
-    def save_molecule(self):
+        return self.box_l
+    
+    
+    def add_instances_to_engine(self):
+        ### test the method
+        bond_instances=self.db._get_instances_df(pmb_type='bond')
+        particle_instances=self.db._get_instances_df(pmb_type='particle')
+        if bond_instances.index.size>0:
+
+            particles_added=set()
+            for i in range(bond_instances.index.size):
+                bond_instance=self.db.get_instance(pmb_type='bond',
+                                    instance_id=i)
+                particle_id1=bond_instance.particle_id1
+                particle_id2=bond_instance.particle_id2
+
+                if particle_id1 not in particles_added:
+                    self._add_particle(particle_id1)
+                    particles_added.add(particle_id1)
+
+                if particle_id2 not in particles_added:
+                    self._add_particle(particle_id2)
+                    particles_added.add(particle_id2)
+
+                self._add_bond(particle_id1,particle_id2,bond_instance)
+
+        elif particle_instances.index.size>0:
+            for i in range(particle_instances.index.size):
+                self._add_particle(i)
+        else:
+            raise RuntimeError('No particles, residues or molecules have been created so far')
+                    
+            
+            
         return 
