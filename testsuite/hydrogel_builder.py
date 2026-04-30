@@ -73,16 +73,16 @@ pmb.define_bond(bond_type = 'harmonic',
                                                                         [NodeType, BeadType2]])
 
 diamond_lattice = DiamondLattice(mpc, generic_bond_length)
-box_l = diamond_lattice.box_l
-espresso_system = espressomd.System(box_l = [box_l]*3)
+box_l = [diamond_lattice.box_l]*3
+espresso_system = espressomd.System(box_l = box_l)
 lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
 
 
 pmb.create_molecule(name=molecule_name,
                     number_of_molecules=1,
-                    espresso_system=espresso_system,
+                    box_l=box_l,
                     use_default_bond=False,
-                    list_of_first_residue_positions = [[np.random.uniform(0,box_l)]*3])
+                    list_of_first_residue_positions = [[np.random.uniform(0,diamond_lattice.box_l)]*3])
 
 # Setting up node topology
 indices = diamond_lattice.indices
@@ -106,12 +106,14 @@ hydrogel_name="my_hydrogel"
 pmb.define_hydrogel(hydrogel_name,node_topology, chain_topology)
 
 # Creating hydrogel
-hydrogel_id= pmb.create_hydrogel(hydrogel_name, espresso_system)
+hydrogel_id= pmb.create_hydrogel(hydrogel_name,box_l=box_l)
 hydrogel_tpl = pmb.db.get_template(pmb_type="hydrogel", 
                                    name=hydrogel_name)
 hydrogel_inst = pmb.db.get_instance(pmb_type="hydrogel", 
                                     instance_id=hydrogel_id)
 
+pmb.set_simulation_engine(espresso_system)
+pmb.add_instances_to_engine()
 
 class Test(ut.TestCase):
     def test_create_hydrogel_missing_template(self):
@@ -119,7 +121,7 @@ class Test(ut.TestCase):
         Unit test that create_hydrogel raises if the template is missing.
         """
         with self.assertRaises(ValueError):
-            pmb.create_hydrogel("missing_hydrogel_template", espresso_system)
+            pmb.create_hydrogel("missing_hydrogel_template",box_l=box_l)
 
     def test_hydrogel_template_storage(self):
         """

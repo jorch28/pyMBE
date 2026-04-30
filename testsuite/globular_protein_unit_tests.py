@@ -38,6 +38,7 @@ for key in ref_sequence:
     ref_residue_list.append(f"AA-{key}")
 
 
+
 class Test(ut.TestCase):
     def test_protein_setup(self):
         """
@@ -101,20 +102,23 @@ class Test(ut.TestCase):
         np.testing.assert_raises(ValueError, 
                                  pmb.define_protein, 
                                  **input_parameters)
-        espresso_system=espressomd.System(box_l = [Box_L.to('reduced_length').magnitude] * 3)
+        box_l=[Box_L.to('reduced_length').magnitude] * 3
+        espresso_system=espressomd.System(box_l = box_l)
+        pmb.set_simulation_engine(espresso_system)
+
         with self.assertRaises(ValueError):
             pmb.create_protein(name="missing_protein_template",
                                number_of_proteins=1,
-                               espresso_system=espresso_system,
+                               box_l=box_l,
                                topology_dict=topology_dict)
         molecule_id = pmb.create_protein(name=protein_pdb,
                                         number_of_proteins=1,
-                                        espresso_system=espresso_system,
+                                        box_l=box_l,
                                         topology_dict=topology_dict)[0]
+        pmb.add_instances_to_engine()
         particle_id_list = pmb.get_particle_id_map(object_name=protein_pdb)["all"]
         center_of_mass_es = pmb.calculate_center_of_mass(instance_id=molecule_id,
-                                                        pmb_type="protein",
-                                                        espresso_system=espresso_system)
+                                                        pmb_type="protein")
         center_of_mass = np.zeros(3)
         axis_list = [0,1,2]
         for aminoacid in topology_dict.keys():
@@ -156,12 +160,13 @@ class Test(ut.TestCase):
         starting_number_of_particles=len(espresso_system.part.all())
         pmb.create_protein(name=protein_pdb,
                             number_of_proteins=0,
-                            espresso_system=espresso_system,
+                            box_l=box_l,
                             topology_dict=topology_dict)
         pmb.create_protein(name=protein_pdb,
                             number_of_proteins=-1,
-                            espresso_system=espresso_system,
+                            box_l=box_l,
                             topology_dict=topology_dict)
+        pmb.add_instances_to_engine()
         np.testing.assert_equal(actual=len(espresso_system.part.all()), 
                                 desired=starting_number_of_particles, 
                                 verbose=True)
@@ -174,8 +179,7 @@ class Test(ut.TestCase):
 
         momI = 0
         center_of_mass = pmb.calculate_center_of_mass(instance_id=molecule_id, 
-                                                      pmb_type="protein", 
-                                                      espresso_system=espresso_system)
+                                                      pmb_type="protein")
         for p in espresso_system.part:
             if p.mass > 1: 
                 rigid_object_id = p.id 

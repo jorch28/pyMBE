@@ -31,8 +31,8 @@ from pyMBE.storage.instances.bond import BondInstance
 from pathlib import Path
 import csv
 
-
-espresso_system=espressomd.System (box_l = [100]*3)
+box_l=[100]*3
+espresso_system=espressomd.System (box_l = box_l)
 
 class DummyDB:
     def __init__(self):
@@ -486,7 +486,11 @@ class Test(ut.TestCase):
                             node_topology, 
                             chain_topology)
         assembly_id = pmb.create_hydrogel(name="my_hydrogel",
-                                          espresso_system=espresso_system)
+                                          box_l=box_l)
+
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
+        
         new_pmb = pyMBE.pymbe_library(23)
         with tempfile.TemporaryDirectory() as tmp_directory:
             # Save and load the database
@@ -504,14 +508,14 @@ class Test(ut.TestCase):
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="particle"),
                                       new_pmb.get_instances_df(pmb_type="particle"))
         # Clean up before the next test
-        pmb.delete_instances_in_system(espresso_system=espresso_system,
+        pmb.delete_instances_in_system(
                                        instance_id=assembly_id,
                                        pmb_type="hydrogel")
         # Test instances of a peptide (tests peptide, residue, bond and particle instances)
         path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021"
         path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
-        pmb.load_database (folder=path_to_interactions) # Defines particles
-        pmb.load_pka_set(filename=path_to_pka)
+        ### pmb.load_database(folder): Returns metadata, but not used ?
+        pmb.load_database (folder=path_to_interactions) # Defines particles  load_pka_set(filename=path_to_pka) 
         pka_set = pmb.get_pka_set()
         for particle_name in pka_set.keys():
             pmb.define_monoprototic_particle_states(particle_name=particle_name,
@@ -529,8 +533,12 @@ class Test(ut.TestCase):
                             sequence="KKKKDDDD")
         pep_ids = pmb.create_molecule(name="Peptide1",
                             number_of_molecules=2,
-                            espresso_system=espresso_system,
+                            box_l=box_l, ###set box_l
                             use_default_bond=True)
+        
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
+
         new_pmb = pyMBE.pymbe_library(23)
         with tempfile.TemporaryDirectory() as tmp_directory:
             # Save and load the database
@@ -547,7 +555,7 @@ class Test(ut.TestCase):
                                       new_pmb.get_instances_df(pmb_type="particle"))
         # Clean up before the next test
         for pepid in pep_ids:
-            pmb.delete_instances_in_system(espresso_system=espresso_system,
+            pmb.delete_instances_in_system(
                                         instance_id=pepid,
                                         pmb_type="peptide")
         pmb.db.delete_templates(pmb_type="particle")
@@ -570,8 +578,12 @@ class Test(ut.TestCase):
                            sequence="KKKKKK")
         prot_ids = pmb.create_protein(name="1beb",
                                     number_of_proteins=1,
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     topology_dict=topology_dict)
+        
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
+        
         new_pmb = pyMBE.pymbe_library(23)
         with tempfile.TemporaryDirectory() as tmp_directory:
             # Save and load the database
@@ -588,7 +600,7 @@ class Test(ut.TestCase):
                                       new_pmb.get_instances_df(pmb_type="particle"))
         # Clean up 
         for protid in prot_ids:
-            pmb.delete_instances_in_system(espresso_system=espresso_system,
+            pmb.delete_instances_in_system(
                                         instance_id=protid,
                                         pmb_type="protein")
             
@@ -718,9 +730,10 @@ class Test(ut.TestCase):
         Test io for default bonds
         """
         pmb = pyMBE.pymbe_library(1)
-        pmb.define_default_bond(bond_type="FENE", bond_parameters={'r_0'    : 0.5 * pmb.units.nm,
-                             'k'      : 500 * pmb.units('reduced_energy / reduced_length**2'),
-                             'd_r_max': 0.5 * pmb.units.nm})
+        pmb.define_default_bond(bond_type="FENE", 
+                                bond_parameters={'r_0'    : 0.5 * pmb.units.nm,
+                                                'k'      : 500 * pmb.units('reduced_energy / reduced_length**2'),
+                                                'd_r_max': 0.5 * pmb.units.nm})
 
         with tempfile.TemporaryDirectory() as tmp:
             pmb.save_database(tmp)

@@ -36,7 +36,8 @@ bond_l = 0.355 * units.nm
 
 
 diamond = pyMBE.lib.lattice.DiamondLattice(mpc, bond_l)
-espresso_system = espressomd.System(box_l=[diamond.box_l] * 3)
+box_l=[diamond.box_l] * 3
+espresso_system = espressomd.System(box_l=box_l)
 
 
 # Define node particle
@@ -120,13 +121,12 @@ class Test(ut.TestCase):
         define_templates(pmb=pmb)
         # --- Invalid low-level operations ---
         with self.assertRaises(ValueError):
-            pmb._create_hydrogel_node("[1 1 1]", NodeType1, espresso_system)
+            pmb._create_hydrogel_node("[1 1 1]", NodeType1,box_l=box_l)
 
         with self.assertRaises(ValueError):
             pmb._create_hydrogel_chain(
                 "[0 0 0]", "[1 1 1]",
-                {0: [0, 0, 0], 1: diamond.box_l / 4.0 * np.ones(3)},
-                espresso_system,
+                {0: [0, 0, 0], 1: diamond.box_l / 4.0 * np.ones(3)}
             )
 
         # --- Lattice initialization ---
@@ -155,7 +155,7 @@ class Test(ut.TestCase):
         np.testing.assert_equal(lattice.get_node("[3 1 3]"), "default_linker")
        
         # Clean espresso system
-        espresso_system.part.clear()
+        # espresso_system.part.clear()
 
         pmb2 = pyMBE.pymbe_library(23)
         define_templates(pmb=pmb2)
@@ -240,7 +240,6 @@ class Test(ut.TestCase):
                                       molecule_name="test_chain")
         mol_id = pmb2._create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
                                             nodes=nodes,
-                                            espresso_system=espresso_system,
                                             use_default_bond=True)
         # Extract created particle IDs
         chain_pids = pmb2.db._find_instance_ids_by_attribute(pmb_type="particle",
