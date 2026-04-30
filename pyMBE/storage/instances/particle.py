@@ -18,12 +18,13 @@
 #
 
 from typing import Literal, Optional,List,Annotated
+import numpy as np
 from numpy.typing import NDArray
 from pydantic import validator
 from ..base_type import PMBBaseModel
 
 def validate_position(position):
-        if not isinstance(position,NDArray):
+        if not isinstance(position,np.ndarray):
             raise TypeError("Position has to be a numpy array")
         return position
 
@@ -62,10 +63,11 @@ class ParticleInstance(PMBBaseModel):
     particle_id: int
     initial_state: str
     position: Annotated[NDArray,validate_position]
-    fix: Optional[List[bool]]=None
+    fix: List[bool]=[False,False,False]
     residue_id: Optional[int] = None
     molecule_id: Optional[int] = None
     assembly_id: Optional[int] = None
+    added_to_engine: bool = False
     
     class Config:
         arbitrary_types_allowed=True
