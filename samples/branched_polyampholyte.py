@@ -143,21 +143,22 @@ L = volume ** (1./3.) # Side of the simulation box
 calculated_polyampholyte_concentration = N_polyampholyte_chains/(volume*pmb.N_A)
 
 # Create an instance of an espresso system
-espresso_system=espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
+box_l = [L.to('reduced_length').magnitude]*3
+espresso_system=espressomd.System(box_l = box_l)
 espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
 
 # Create your molecules into the espresso system
 pmb.create_molecule(name="polyampholyte", 
                     number_of_molecules=N_polyampholyte_chains,
-                    espresso_system=espresso_system, 
+                    box_l=box_l, 
                     use_default_bond=True)
 pmb.create_counterions(object_name="polyampholyte",
                        cation_name=cation_name,
                        anion_name=anion_name,
-                       espresso_system=espresso_system)
+                       box_l=box_l)
 
-c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
+c_salt_calculated = pmb.create_added_salt(box_l=box_l,
                                           cation_name=cation_name,
                                           anion_name=anion_name,
                                           c_salt=c_salt)
@@ -189,6 +190,9 @@ non_interacting_type = max(type_map.values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print(f"The non interacting type is set to {non_interacting_type}")
+    
+pmb.set_simulation_engine(espresso_system)
+pmb.add_instances_to_engine()
 
 if not ideal:
     ##Setup the potential energy
