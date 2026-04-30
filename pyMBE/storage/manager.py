@@ -225,7 +225,7 @@ class Manager:
             if name in group:
                 found.append(pmb_type)
         return found
-
+    
 
     def _get_instances_df(self, pmb_type):
         """
@@ -504,11 +504,13 @@ class Manager:
         if instance_id not in self._instances[pmb_type]:
             raise ValueError(f"Instance '{instance_id}' not found for type '{pmb_type}' in the pyMBE database.")                                
         if pmb_type == "particle":
-            allowed = ["initial_state", "residue_id", "molecule_id", "assembly_id"]
+            allowed = ["initial_state", "residue_id", "molecule_id", "assembly_id","particle_id","position","added_to_engine"]
         elif pmb_type == "residue":
             allowed = ["molecule_id", "assembly_id"]
         elif pmb_type in self._molecule_like_types:
             allowed = ["assembly_id"]
+        elif pmb_type =="bond":
+            allowed = ["particle_id1","particle_id2","added_to_engine"]
         else:
             allowed = [None]  # No attributes allowed for other types        
         if attribute not in allowed:
@@ -1070,3 +1072,5 @@ class Manager:
         particle_states = {state.name: state for state in states.values()
                            if state.particle_name == particle_name}
         return particle_states
+    
+    
