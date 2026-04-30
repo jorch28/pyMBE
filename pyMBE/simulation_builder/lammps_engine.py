@@ -1,8 +1,8 @@
-from base_classes import SimulationBuilder
+from pyMBE.simulation_builder.base_engine import SimulationEngine
 
 
-class LammpsSimulation(SimulationBuilder):
+class LammpsSimulation(SimulationEngine):
     def __init__(self):
         pass
-    def save_molecule(self):
+    def add_instances_to_engine(self):
         return 
