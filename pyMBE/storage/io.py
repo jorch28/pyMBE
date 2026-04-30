@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 import pandas as pd
+import numpy as np
 import logging
 
 from pyMBE.storage.pint_quantity import PintQuantity
@@ -259,7 +260,7 @@ def _load_database_csv(db, folder):
         csv_file = folder / f"instances_{pmb_type}.csv"
         if not csv_file.exists():
             continue
-        df = pd.read_csv(csv_file, dtype=str).fillna("")
+        df = pd.read_csv(csv_file, dtype=str,float_precision='round_trip').fillna("")
 
         instances: Dict[Any, Any] = {}
 
@@ -272,6 +273,8 @@ def _load_database_csv(db, folder):
                 inst = ParticleInstance(name=row["name"],
                                         particle_id=int(row["particle_id"]),
                                         initial_state=row["initial_state"],
+                                        position=np.array(row["position"]),
+                                        added_to_engine=row["added_to_engine"],
                                         residue_id=None if residue_val == "" else int(residue_val),
                                         molecule_id=None if molecule_val == "" else int(molecule_val),
                                         assembly_id=None if assembly_val == "" else int(assembly_val))
@@ -305,6 +308,7 @@ def _load_database_csv(db, folder):
             elif pmb_type == "bond":
                 inst = BondInstance(name=row["name"],
                                     bond_id=int(row["bond_id"]),
+                                    added_to_engine=row["added_to_engine"],
                                     particle_id1=int(row["particle_id1"]),
                                     particle_id2=int(row["particle_id2"]))
                 instances[inst.bond_id] = inst
@@ -435,6 +439,8 @@ def _save_database_csv(db, folder):
                             "name": inst.name,
                             "particle_id": int(inst.particle_id),
                             "initial_state": inst.initial_state,
+                            "position": inst.position,
+                            "added_to_engine":inst.added_to_engine,
                             "residue_id": int(inst.residue_id) if inst.residue_id is not None else "",
                             "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else "",
                             "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else ""})
@@ -463,6 +469,7 @@ def _save_database_csv(db, folder):
                 rows.append({"pmb_type": pmb_type,
                             "name": inst.name,
                             "bond_id": int(inst.bond_id),
+                            "added_to_engine":inst.added_to_engine,
                             "particle_id1": int(inst.particle_id1),
                             "particle_id2": int(inst.particle_id2)})
             elif pmb_type == "hydrogel" and isinstance(inst, HydrogelInstance):
@@ -477,7 +484,7 @@ def _save_database_csv(db, folder):
                     rows.append({"name": getattr(inst, "name", None)})
 
         df = pd.DataFrame(rows)
-        df.to_csv(os.path.join(folder, f"instances_{pmb_type}.csv"), index=False)
+        df.to_csv(os.path.join(folder, f"instances_{pmb_type}.csv"), index=False,float_format="%.17g")
 
     # REACTIONS
     rows = []
@@ -488,4 +495,4 @@ def _save_database_csv(db, folder):
                     "reaction_type": rx.reaction_type,
                     "metadata": _encode(rx.metadata) if getattr(rx, "metadata", None) is not None else ""})
     if rows:
-        pd.DataFrame(rows).to_csv(os.path.join(folder, "reactions.csv"), index=False)
+        pd.DataFrame(rows).to_csv(os.path.join(folder, "reactions.csv"), index=False,float_format="%.4f")
