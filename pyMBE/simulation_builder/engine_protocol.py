@@ -15,3 +15,9 @@ class EspressoSystemProtocol(Protocol):
         . The decorator @runtime_checkable allows to only check for the structure not the types"""
     part: EspressoParticleProtocol
     bonded_inter: EspressoBondedInterProtocol
+
+@runtime_checkable
+class LammpsProtocol(Protocol):
+    """ Class that emulates the structure of the methods employed by Pymbe from the Lammps class
+        . The decorator @runtime_checkable allows to only check for the structure not the types"""
+    
