@@ -883,9 +883,9 @@ class pymbe_library():
             object_name = self.db.get_instance(pmb_type="particle", 
                                                instance_id=id).name
             object_tpl = self.db.get_template(pmb_type="particle",
-                                          name=object_name)
+                                              name=object_name)
             object_state = self.db.get_template(pmb_type="particle_state",
-                                            name=object_tpl.initial_state)
+                                                name=object_tpl.initial_state)
             object_z = object_state.z
             if object_z > 0:
                 object_charge['positive']+=1*(np.abs(object_z ))
@@ -1396,7 +1396,6 @@ class pymbe_library():
      
     def change_volume_and_rescale_particles(self, d_new, dir="xyz"):
 
-       
         rescale_factor=np.array([1,1,1])
         if d_new<=0:
             raise ValueError("The dimension cannot be negative, neither 0")
@@ -1410,17 +1409,17 @@ class pymbe_library():
         instances=self.get_instances_df(pmb_type='particle')
         for pid in range(instances.index.size):
             es_pos=self.db.get_instance(instance_id=pid,
-                                    pmb_type='particle').position
+                                        pmb_type='particle').position
             rescaled_position=es_pos*rescale_factor
-            print(rescaled_position,"rescaled_position")
             self.db._update_instance(instance_id=pid,
                                      pmb_type='particle',
                                      attribute='position',
                                      value=rescaled_position)
             
         self.simulation_engine.change_volume_and_rescale_particles(d_new=d_new,
-                                                                 dir=dir)
-        return 
+                                                                   dir=dir)
+    
+
     def define_bond(self, bond_type, bond_parameters, particle_pairs):
         """
         Defines bond templates for each particle pair in 'particle_pairs' in the pyMBE database.

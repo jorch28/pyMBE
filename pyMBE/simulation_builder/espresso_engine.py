@@ -26,23 +26,19 @@ class EspressoSimulation(SimulationEngine):
     def _add_particle(self,particle_id):
         particle_instance=self.db.get_instance(pmb_type='particle',
                                  instance_id=particle_id)
-        # part_tpl = self.db.get_template(pmb_type="particle",
-        #                                 name=particle_instance.name)
         part_state = self.db.get_template(pmb_type="particle_state",
                                         name=particle_instance.initial_state)
-        
-        if particle_instance.fix:
-            kwargs = dict(id=particle_id, pos=particle_instance.position, type=part_state.es_type, q=part_state.z,fix=particle_instance.fix)
-        else:
-            kwargs = dict(id=particle_id, pos=particle_instance.position, type=part_state.es_type, q=part_state.z)
-        
+        kwargs = dict(id=particle_id, 
+                        pos=particle_instance.position, 
+                        type=part_state.es_type, 
+                        q=part_state.z,
+                        fix=particle_instance.fix)        
         self.espresso_system.part.add(**kwargs)
         self.db._update_instance(instance_id=particle_id,
                                     pmb_type='particle',
                                     attribute='added_to_engine',
                                     value=True)
 
-        
             
     def _check_particle_exists_in_espresso(self,particle_id):
         particle_exists=self.espresso_system.exists(particle_id)
@@ -100,11 +96,11 @@ class EspressoSimulation(SimulationEngine):
                                 bond_type=bond_type)
         if bond_type == 'harmonic':
             bond_instance = espressomd.interactions.HarmonicBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
-                                                      r_0 = bond_parameters["r_0"].m_as("reduced_length"))
+                                                                r_0 = bond_parameters["r_0"].m_as("reduced_length"))
         elif bond_type == 'FENE':
             bond_instance = espressomd.interactions.FeneBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
-                                                      r_0 = bond_parameters["r_0"].m_as("reduced_length"),
-                                                      d_r_max = bond_parameters["d_r_max"].m_as("reduced_length"))    
+                                                            r_0 = bond_parameters["r_0"].m_as("reduced_length"),
+                                                            d_r_max = bond_parameters["d_r_max"].m_as("reduced_length"))    
         return bond_instance
     
     def _delete_particles(self, particle_ids):
@@ -155,13 +151,14 @@ class EspressoSimulation(SimulationEngine):
         else:   
             # Create an instance of the bond 
             bond_inst = self._create_bond_instance(bond_type=bond_template.bond_type,
-                                                            bond_parameters=bond_template.get_parameters(self.units))
+                                                   bond_parameters=bond_template.get_parameters(self.units))
             self.db.espresso_bond_instances[bond_template.name]= bond_inst
             self.espresso_system.bonded_inter.add(bond_inst)
         return bond_inst
     
-   
-    
+    def _get_particle_ids_in_espresso(self):
+        espresso_particles=self.espresso_system.part.all()
+        return espresso_particles.id    
     
     def _get_last_particle_id_in_espresso(self):
         espresso_particles=self.espresso_system.part.all()
@@ -188,6 +185,42 @@ class EspressoSimulation(SimulationEngine):
                                                                  dir=dir)
         return
     
+    def update_particle_id(self, old_pid, new_pid):
+        """
+        Method to be called if particles have been previously added to a simulation engine without using pyMBE.
+
+        Args:
+            old_pid (int): old particle id to be replaced.
+            new_pid (int): new particle id to be assigned to instance in the pyMBE database. 
+        """
+        
+        if self.espresso_system == None:
+            raise ValueError('No simulation engine has been set to pymbe')
+        
+        self.db._update_instance(instance_id=old_pid,
+                                 pmb_type='particle',
+                                 attribute='particle_id',
+                                 value=new_pid)
+    
+        particle_id1_instances_ids=self.db._find_instance_ids_by_attribute(pmb_type='bond', 
+                                                                           attribute='particle_id1', 
+                                                                           value=old_pid)
+        for bond_id in particle_id1_instances_ids:
+            self.db._update_instance(instance_id=bond_id,
+                                     pmb_type='bond',
+                                     attribute='particle_id1',
+                                     value=new_pid)
+        particle_id2_instances_ids=self.db._find_instance_ids_by_attribute(pmb_type='bond', 
+                                                                attribute='particle_id2', 
+                                                                value=old_pid)
+        for bond_id in particle_id2_instances_ids:
+            self.db._update_instance(instance_id=bond_id,
+                                     pmb_type='bond',
+                                     attribute='particle_id2',
+                                     value=new_pid)
+
+        
+
     def update_instances_ids_according_to_engine_particles_ids(self):
         """
         Method to be called if particles have been previously added to a simulation engine without using pymbe.
@@ -245,40 +278,49 @@ class EspressoSimulation(SimulationEngine):
     
     def add_instances_to_engine(self):
         """
-            This method adds the set of particles instances and bond instances that are not present in the pymbe data base 
+            This method adds the set of particles instances and bond instances 
+            that are not present in the pymbe data base 
         """
-        ### test the method
-        all_particles=self.db._get_instances_df(pmb_type='particle')
-        missing_particle_ids=self.db._find_instance_ids_by_attribute(pmb_type='particle', 
-                                                attribute='added_to_engine', 
-                                                value=False)
         
-        last_id=self._get_last_particle_id_in_espresso()
+        missing_particle_ids=self.db._find_instance_ids_by_attribute(pmb_type='particle', 
+                                                                     attribute='added_to_engine', 
+                                                                     value=False)
+        if not missing_particle_ids:
+            raise RuntimeError('No particles instances in the pyMBE database set to be added to the simulation engine')
+        
+        added_particle_ids=self.db._find_instance_ids_by_attribute(pmb_type='particle',
+                                                                   attribute='added_to_engine', 
+                                                                   value=True)
+        ids_in_espresso = list(self._get_particle_ids_in_espresso())
+        
+        overlapping_ids = set(ids_in_espresso).intersection(set(missing_particle_ids))
+        for overlapping_id in overlapping_ids:
+            missing_particle_ids.remove(overlapping_id)
+            new_id = max(ids_in_espresso+added_particle_ids+missing_particle_ids)+1
+            self.update_particle_id(old_pid=overlapping_id, 
+                                    new_pid=new_id)
+            missing_particle_ids.append(new_id)
 
-        if last_id!=None and len(missing_particle_ids)>0:
-            ### this condition takes into account the following edge case:
-                ### A set of particles have been added to espresso without using pyMBE. 
-                ### And a second set of particles have been added to the pyMBE database and the user wants them to be added to espresso  
-            if last_id>=missing_particle_ids[0]:
-                self.update_instances_ids_according_to_engine_particles_ids()
-
-        if all_particles.index.size>0:
-                for id in missing_particle_ids:
-                    self._add_particle(id)
-        else:
-            raise RuntimeError('No particles, residues or molecules have been created so far')
+        if overlapping_ids:
+            warnings.warn("""Please review your setup, you have previously added a set of particles to ESPResSo. 
+                          The particle ids of the pyMBE database have been updated taking into account the id of 
+                          the last particle from ESPResSo. The following particle ids were updated: {}. """.format(overlapping_ids))
+        
+        for id in missing_particle_ids:
+            self._add_particle(id)
         
         missing_bond_ids=self.db._find_instance_ids_by_attribute(pmb_type='bond', 
-                                                attribute='added_to_engine', 
-                                                value=False)
+                                                                 attribute='added_to_engine', 
+                                                                 value=False)
         
         if len(missing_bond_ids)>0:
             for id in missing_bond_ids:
                 bond_instance=self.db.get_instance(pmb_type='bond',
-                                     instance_id=id)
+                                                   instance_id=id)
                 particle_id1=bond_instance.particle_id1
                 particle_id2=bond_instance.particle_id2
-
-                self._add_bond(particle_id1,particle_id2,bond_instance)
+                self._add_bond(particle_id1,
+                               particle_id2,
+                               bond_instance)
        
         return 
