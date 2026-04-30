@@ -25,6 +25,7 @@ import scipy.constants
 import scipy.optimize
 import logging
 import importlib.resources
+import warnings
 
 # Database
 from pyMBE.storage.manager import Manager
@@ -49,7 +50,7 @@ from pyMBE.storage.instances.hydrogel import HydrogelInstance
 
 from pyMBE.simulation_builder.espresso_engine import EspressoSimulation
 from pyMBE.simulation_builder.lammps_engine import LammpsSimulation 
-from pyMBE.simulation_builder.engine_protocol import EspressoSystemProtocol
+from pyMBE.simulation_builder.engine_protocol import EspressoSystemProtocol,LammpsProtocol
 ## Reactions
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 # Utilities
@@ -92,7 +93,7 @@ class pymbe_library():
             Root path to the pyMBE package resources.
     """
 
-    def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None,simulation_engine='espresso'):
+    def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
         Initializes the pyMBE library.
 
@@ -128,7 +129,7 @@ class pymbe_library():
                                Kw=Kw)
         
         self.db = Manager(units=self.units)
-        self.simulation_engine=None 
+        self.simulation_engine = None 
         self.lattice_builder = None
         self.root = importlib.resources.files(__package__)
 
@@ -221,7 +222,7 @@ class pymbe_library():
         bond_instance = self.simulation_engine._create_bond_instance(bond_type,bond_parameters)
         return bond_instance
 
-    def _create_hydrogel_chain(self, hydrogel_chain, nodes, espresso_system, use_default_bond=False):
+    def _create_hydrogel_chain(self, hydrogel_chain, nodes, use_default_bond=False):
         """
         Creates a chain between two nodes of a hydrogel.
 
@@ -256,8 +257,11 @@ class pymbe_library():
         node_start_label = self.lattice_builder._create_node_label(node_start)
         node_end_label = self.lattice_builder._create_node_label(node_end)
         _, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
-        if node_start != node_end or residue_list == residue_list[::-1]:
-            ValueError(f"Aborted creation of hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
+        # if node_start != node_end or residue_list == residue_list[::-1]:
+        ### Hydrogels are not a circular structure thus node_start has to be different that node_end
+        if node_start == node_end or (residue_list == residue_list[::-1] and len(residue_list)>1):
+            # ValueError(f"Aborted creation of hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
+            raise ValueError(f"Aborted creation of hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
         if reverse:
             reverse_residue_order=True
         else:
@@ -277,6 +281,7 @@ class pymbe_library():
                                                      name=chain_residues[0]).central_bead
         part_end_chain_name = self.db.get_template(pmb_type="residue",
                                                    name=chain_residues[-1]).central_bead
+        
         lj_parameters = self.get_lj_parameters(particle_name1=nodes[node_start_label]["name"],
                                                particle_name2=part_start_chain_name)
         bond_tpl = self.get_bond_template(particle_name1=nodes[node_start_label]["name"],
@@ -288,29 +293,24 @@ class pymbe_library():
         first_bead_pos = np.array((nodes[node_start_label]["pos"])) + np.array(backbone_vector)*l0
         mol_id = self.create_molecule(name=molecule_name,  # Use the name defined earlier
                                       number_of_molecules=1,  # Creating one chain
-                                      espresso_system=espresso_system,
+                                      box_l=self.lattice_builder.box_l, ### Add lattice_builder box length size
                                       list_of_first_residue_positions=[first_bead_pos.tolist()], #Start at the first node
                                       backbone_vector=np.array(backbone_vector)/l0,
                                       use_default_bond=use_default_bond,
                                       reverse_residue_order=reverse_residue_order)[0]
+        
         # Bond chain to the hydrogel nodes
         ### The following implementation belongs to espresso engine
         chain_pids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                              attribute="molecule_id",
                                                              value=mol_id)
-        bond_tpl1 = self.get_bond_template(particle_name1=nodes[node_start_label]["name"],
-                                            particle_name2=part_start_chain_name,
-                                            use_default_bond=use_default_bond)
-        start_bond_instance = self._get_espresso_bond_instance(bond_template=bond_tpl1) 
-        bond_tpl2 = self.get_bond_template(particle_name1=nodes[node_end_label]["name"],
-                                           particle_name2=part_end_chain_name,
-                                           use_default_bond=use_default_bond)   
-        end_bond_instance = self._get_espresso_bond_instance(bond_template=bond_tpl2)
-        espresso_system.part.by_id(start_node_id).add_bond((start_bond_instance, chain_pids[0]))
-        espresso_system.part.by_id(chain_pids[-1]).add_bond((end_bond_instance, end_node_id))
+
+        self.create_bond(particle_id1=start_node_id,particle_id2=chain_pids[0],use_default_bond=use_default_bond)
+        self.create_bond(particle_id1=chain_pids[-1],particle_id2=end_node_id,use_default_bond=use_default_bond)
+
         return mol_id
 
-    def _create_hydrogel_node(self, node_index, node_name):
+    def _create_hydrogel_node(self, node_index, node_name,box_l):
         """
         Set a node residue type.
         
@@ -333,7 +333,7 @@ class pymbe_library():
             raise ValueError("LatticeBuilder is not initialized. Use 'initialize_lattice_builder' first.")
         node_position = np.array(node_index)*0.25*self.lattice_builder.box_l
         p_id = self.create_particle(name = node_name,
-                                    box_l=self.lattice_builder.box_l,
+                                    box_l=box_l,
                                     number_of_particles=1,
                                     position = [node_position])
         key = self.lattice_builder._get_node_by_label(f"[{node_index[0]} {node_index[1]} {node_index[2]}]")
@@ -425,7 +425,7 @@ class pymbe_library():
             raise ValueError(f"No {allowed_types} template found with name '{name}'. Found templates of types: {filtered_types}.")
         return next(iter(filtered_types))
 
-    def _delete_particles_from_espresso(self, particle_ids, espresso_system):
+    def _delete_particles_from_engine(self, particle_ids):
         """
         Remove a list of particles from an ESPResSo simulation system.
 
@@ -444,13 +444,14 @@ class pymbe_library():
             - Attempting to remove a non-existent particle ID will raise
             an ESPResSo error.
         """
-        for pid in particle_ids:
-            espresso_system.part.by_id(pid).remove()
+        # for pid in particle_ids:
+        #     espresso_system.part.by_id(pid).remove()
+        self.simulation_engine._delete_particles(particle_ids)
 
     def add_instances_to_engine(self):
         self.simulation_engine.add_instances_to_engine()
 
-    def calculate_center_of_mass(self, instance_id, pmb_type, espresso_system):
+    def calculate_center_of_mass(self, instance_id, pmb_type):
         """
         Calculates the center of mass of a pyMBE object instance in an ESPResSo system.
 
@@ -479,10 +480,13 @@ class pymbe_library():
         axis_list = [0,1,2]
         inst = self.db.get_instance(pmb_type=pmb_type,
                                     instance_id=instance_id)
+        print(inst," instance center of mass")
+        print(inst.name,"name instance")
         particle_id_list = self.get_particle_id_map(object_name=inst.name)["all"]
         for pid in particle_id_list:
             for axis in axis_list:
-                center_of_mass [axis] += espresso_system.part.by_id(pid).pos[axis]
+                center_of_mass[axis] += self.db.get_instance(pmb_type='particle',
+                                    instance_id=pid).position[axis]
         center_of_mass = center_of_mass / len(particle_id_list)
         return center_of_mass
 
@@ -654,7 +658,7 @@ class pymbe_library():
             partition_coefficients_list.append(partition_coefficient)
         return {"charges_dict": Z_HH_Donnan, "pH_system_list": pH_system_list, "partition_coefficients": partition_coefficients_list}
 
-    def calculate_net_charge(self,espresso_system,object_name,pmb_type,dimensionless=False):
+    def calculate_net_charge(self,object_name,pmb_type,dimensionless=False):
         """
         Calculates the net charge per instance of a given pmb object type.
 
@@ -683,7 +687,14 @@ class pymbe_library():
             else:
                 net_charge = 0 * self.units.Quantity(1, "reduced_charge")
             for pid in particle_ids:
-                q = espresso_system.part.by_id(pid).q
+                particle_instance=self.db.get_instance(pmb_type='particle',
+                                     instance_id=pid)
+                particle_name=particle_instance.name
+                particle_tpl = self.db.get_template(pmb_type="particle",
+                                          name=particle_name)
+                particle_state = self.db.get_template(pmb_type="particle_state",
+                                                    name=particle_tpl.initial_state)
+                q = particle_state.z
                 if not dimensionless:
                     q *= self.units.Quantity(1, "reduced_charge")
                 net_charge += q
@@ -695,7 +706,7 @@ class pymbe_library():
             mean_charge = (np.mean([q.magnitude for q in charges.values()])* self.units.Quantity(1, "reduced_charge"))
         return {"mean": mean_charge, "instances": charges}
 
-    def center_object_in_simulation_box(self, instance_id, espresso_system, pmb_type):
+    def center_object_in_simulation_box(self, instance_id, box_l,pmb_type):
         """
         Centers a pyMBE object instance in the simulation box of an ESPResSo system.
         The object is translated such that its center of mass coincides with the
@@ -717,15 +728,21 @@ class pymbe_library():
         inst = self.db.get_instance(instance_id=instance_id,
                                     pmb_type=pmb_type)
         center_of_mass = self.calculate_center_of_mass(instance_id=instance_id,
-                                                       espresso_system=espresso_system,
                                                        pmb_type=pmb_type)
-        box_center = [espresso_system.box_l[0]/2.0,
-                      espresso_system.box_l[1]/2.0,
-                      espresso_system.box_l[2]/2.0]
+        box_center = [box_l[0]/2.0,
+                      box_l[1]/2.0,
+                      box_l[2]/2.0]
         particle_id_list = self.get_particle_id_map(object_name=inst.name)["all"]
+        print(particle_id_list,"particle_id_list")
         for pid in particle_id_list:
-            es_pos = espresso_system.part.by_id(pid).pos
-            espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
+            es_pos=self.db.get_instance(instance_id=pid,
+                                    pmb_type='particle').position
+            centered_position=es_pos - center_of_mass + box_center
+
+            self.db._update_instance(instance_id=pid,
+                                     pmb_type='particle',
+                                     attribute='position',
+                                     value=centered_position)
 
     def create_added_salt(self, box_l, cation_name, anion_name, c_salt):    
         """
@@ -755,7 +772,7 @@ class pymbe_library():
         if anion_charge >= 0:
             raise ValueError(f'ERROR anion charge must be negative, charge {anion_charge}')
         # Calculate the number of ions in the simulation box
-        volume=self.units.Quantity(box_l**3, 'reduced_length**3') ### Changed espresso.volume() to box_l**3
+        volume=self.units.Quantity(box_l[0]*box_l[1]*box_l[2], 'reduced_length**3') ### Changed espresso.volume() to box_l**3
         if c_salt.check('[substance] [length]**-3'):
             N_ions= int((volume*c_salt.to('mol/reduced_length**3')*self.N_A).magnitude)
             c_salt_calculated=N_ions/(volume*self.N_A)
@@ -869,11 +886,11 @@ class pymbe_library():
                                           name=object_name)
             object_state = self.db.get_template(pmb_type="particle_state",
                                             name=object_tpl.initial_state)
-            object_charge = object_state.z
-            if object_charge > 0:
-                object_charge['positive']+=1*(np.abs(object_charge ))
-            elif object_charge < 0:
-                object_charge['negative']+=1*(np.abs(object_charge ))
+            object_z = object_state.z
+            if object_z > 0:
+                object_charge['positive']+=1*(np.abs(object_z ))
+            elif object_z < 0:
+                object_charge['negative']+=1*(np.abs(object_z ))
         if object_charge['positive'] % abs(anion_charge) == 0:
             counterion_number[anion_name]=int(object_charge['positive']/abs(anion_charge))
         else:
@@ -899,7 +916,7 @@ class pymbe_library():
             logging.info(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
 
-    def create_hydrogel(self, name, espresso_system, use_default_bond=False):
+    def create_hydrogel(self, name, box_l,use_default_bond=False):
         """ 
         Creates a hydrogel in espresso_system using a pyMBE hydrogel template given by 'name'
 
@@ -928,7 +945,8 @@ class pymbe_library():
             node_index = node.lattice_index
             node_name = node.particle_name
             node_pos, node_id = self._create_hydrogel_node(node_index=node_index,
-                                                          node_name=node_name)
+                                                          node_name=node_name,
+                                                          box_l=box_l)
             node_label = self.lattice_builder._create_node_label(node_index=node_index)
             nodes[node_label] = {"name": node_name, "id": node_id, "pos": node_pos} 
             self.db._update_instance(instance_id=node_id,
@@ -1099,7 +1117,7 @@ class pymbe_library():
             molecule_ids.append(molecule_id)
         return molecule_ids
     
-    def create_particle(self, name, box_l, number_of_particles, position=None, fix=False):
+    def create_particle(self, name, box_l, number_of_particles, position=None, fix=[False,False,False]):
         """
         Creates one or more particles in an ESPResSo system based on the particle template in the pyMBE database.
         
@@ -1141,22 +1159,17 @@ class pymbe_library():
             if position is None:
                 particle_position = self.rng.random((1, 3))[0] *np.copy(box_l)
             else:
-                particle_position = position[index]
+                particle_position = np.array(position[index])
             
             particle_id = self.db._propose_instance_id(pmb_type="particle")
             created_pid_list.append(particle_id)
             # kwargs = dict(id=particle_id, pos=particle_position, type=es_type, q=z)
-            if fix:
-                particle_fix= 3 * [fix] ### Is the fix attribute something concrete from espresso_system?
-            else:
-                particle_fix=None
             # espresso_system.part.add(**kwargs)
-
             part_inst = ParticleInstance(name=name,
                                          particle_id=particle_id,
                                          initial_state=name_state,
                                          position=particle_position,
-                                         fix=particle_fix)
+                                         fix=fix)
             self.db._register_instance(part_inst)
                               
         return created_pid_list
@@ -1235,7 +1248,7 @@ class pymbe_library():
                                                        box_l=box_l,
                                                        number_of_particles=1,
                                                        position=[absolute_pos],
-                                                       fix=True)[0]
+                                                       fix=[True,True,True])[0]
                     # update metadata
                     self.db._update_instance(instance_id=particle_id,
                                              pmb_type="particle",
@@ -1379,8 +1392,35 @@ class pymbe_library():
                 self.create_bond(particle_id1=central_bead_id,
                                  particle_id2=side_chain_beads_ids[0],
                                  use_default_bond=use_default_bond)        
-        return  residue_id  
+        return  residue_id 
+     
+    def change_volume_and_rescale_particles(self, d_new, dir="xyz"):
 
+       
+        rescale_factor=np.array([1,1,1])
+        if d_new<=0:
+            raise ValueError("The dimension cannot be negative, neither 0")
+        if "x" in dir:
+            rescale_factor[0]=d_new/self.simulation_engine.box_l[0]
+        if "y" in dir:
+            rescale_factor[1]=d_new/self.simulation_engine.box_l[1]
+        if "z" in dir:
+            rescale_factor[2]=d_new/self.simulation_engine.box_l[2]
+
+        instances=self.get_instances_df(pmb_type='particle')
+        for pid in range(instances.index.size):
+            es_pos=self.db.get_instance(instance_id=pid,
+                                    pmb_type='particle').position
+            rescaled_position=es_pos*rescale_factor
+            print(rescaled_position,"rescaled_position")
+            self.db._update_instance(instance_id=pid,
+                                     pmb_type='particle',
+                                     attribute='position',
+                                     value=rescaled_position)
+            
+        self.simulation_engine.change_volume_and_rescale_particles(d_new=d_new,
+                                                                 dir=dir)
+        return 
     def define_bond(self, bond_type, bond_parameters, particle_pairs):
         """
         Defines bond templates for each particle pair in 'particle_pairs' in the pyMBE database.
@@ -1746,7 +1786,7 @@ class pymbe_library():
         self.db._register_template(tpl)
 
     
-    def delete_instances_in_system(self, instance_id, pmb_type, espresso_system):
+    def delete_instances_in_system(self, instance_id, pmb_type):
         """
         Deletes the instance with instance_id from the ESPResSo system. 
         Related assembly, molecule, residue, particles and bond instances will also be deleted from the pyMBE dataframe.
@@ -1772,8 +1812,7 @@ class pymbe_library():
         particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                                attribute=instance_identifier,
                                                                value=instance_id)
-        self._delete_particles_from_espresso(particle_ids=particle_ids,
-                                             espresso_system=espresso_system)
+        self._delete_particles_from_engine(particle_ids=particle_ids)
         self.db.delete_instance(pmb_type=pmb_type,
                                 instance_id=instance_id)
 
@@ -1906,7 +1945,6 @@ class pymbe_library():
         label = self._get_label_id_map(pmb_type=pmb_type)
         particle_ids_list = self.get_particle_id_map(object_name=inst.name)[label][instance_id]
         center_of_mass = self.calculate_center_of_mass (instance_id=instance_id,
-                                                        espresso_system=espresso_system,
                                                         pmb_type=pmb_type)
         rigid_object_center = espresso_system.part.add(pos=center_of_mass,
                                                         rotation=[True,True,True], 
@@ -2568,9 +2606,11 @@ class pymbe_library():
                                                       db=self.db,
                                                       espresso_system=simulation_engine,
                                                       units=self.units)
-        elif 'lammps' in type(simulation_engine):
+        elif isinstance(simulation_engine,LammpsProtocol): 
             self.simulation_engine=LammpsSimulation(box_l=box_l,
-                                                      db=self.db)
+                                                      db=self.db,
+                                                      lammps=simulation_engine,
+                                                      units=self.units)
         else:
             raise ValueError('The specified simulation engine is not implemented yet')
 
@@ -3238,3 +3278,9 @@ class pymbe_library():
                                                                                   ureg=self.units),
                                                 shift=shift_tpl)
             self.db._register_template(lj_template)
+
+    def update_instances_ids_according_to_engine_particles_ids(self):
+        """
+        Method to be called if particles have been previously added to a simulation engine without using pymbe.
+        """
+        self.simulation_engine.update_instances_ids_according_to_engine_particles_ids()
