@@ -20,6 +20,7 @@ import logging
 import re
 import numpy as np
 import scipy
+from pyMBE.exceptions.pmb_warnings import deprecated
 
 def calculate_initial_bond_length(bond_parameters, bond_type, lj_parameters):
     """
@@ -281,7 +282,7 @@ def define_peptide_AA_residues(sequence,model, pmb):
             pmb.define_residue(name = residue_name, 
                                     central_bead = central_bead,
                                     side_chains = side_chains)
-
+@deprecated('pmb.simulation_engine.do_reaction')
 def do_reaction(algorithm, steps):
     """
     Executes reaction steps using an ESPResSo reaction algorithm with
@@ -311,6 +312,7 @@ def do_reaction(algorithm, steps):
     else:
         algorithm.reaction(steps=steps)
 
+@deprecated('pmb.simulation_engine.get_number_of_particles')
 def get_number_of_particles(espresso_system, ptype):
     """
     Returns the number of particles of a given ESPResSo particle type.
@@ -508,7 +510,7 @@ def protein_sequence_parser(sequence):
             clean_sequence.append(residue_ok)
     return clean_sequence
 
-
+@deprecated('pmb.simulation_engine.relax_system')
 def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_descent=5000, max_displacement=0.01, Nsteps_iter_relax=500):
     """
     Relaxes the energy of the given ESPResSo system by performing the following steps:
@@ -571,7 +573,7 @@ def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_des
     logging.info(f"*** Minimum particle distance after relaxation: {espresso_system.analysis.min_dist()} ***")
     logging.debug("*** Relaxation finished ***")
     return espresso_system.analysis.min_dist()
-
+@deprecated('pmb.simulation_engine.setup_langevin_dynamics')
 def setup_langevin_dynamics(espresso_system, kT, seed,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
     """
     Sets up Langevin Dynamics for an ESPResSo simulation system.
@@ -634,7 +636,7 @@ def setup_langevin_dynamics(espresso_system, kT, seed,time_step=1e-2, gamma=1, t
                                               int_steps=int_steps, 
                                               adjust_max_skin=adjust_max_skin)
         logging.info(f"Optimized skin value: {espresso_system.cell_system.skin}")
-
+@deprecated('pmb.simulation_engine.setup_electrostatic_interactions')
 def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3, params=None, verbose=False):
     """
     Sets up electrostatic interactions in an ESPResSo system.
