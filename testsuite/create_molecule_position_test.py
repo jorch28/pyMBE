@@ -129,9 +129,8 @@ class Test(ut.TestCase):
         
         center_of_mass = pmb.calculate_center_of_mass(instance_id=molecule_ids[0],
                                                       pmb_type="molecule")
+        ### The method is decoupled from espresso and the center of mass can be calculated without using any simulation engine
         
-        pmb.add_instances_to_engine()
-
         center_of_mass_ref = [L/2]*3
 
         for ind in range(len(center_of_mass)):
@@ -141,7 +140,8 @@ class Test(ut.TestCase):
         ### New implementation in order to avoid using espresso
         # espresso_system.change_volume_and_rescale_particles(d_new=3*L, dir="z")
 
-        pmb.change_volume_and_rescale_particles(d_new=3*L, dir="z")
+        pmb.simulation_engine.change_volume_and_rescale_particles(d_new=3*L, dir="z")
+        
         new_box_l=[box_l[0],box_l[1],3*L]
         pmb.center_object_in_simulation_box(instance_id=molecule_ids[2],
                                             pmb_type="molecule", 
