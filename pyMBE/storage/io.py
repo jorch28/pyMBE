@@ -273,8 +273,9 @@ def _load_database_csv(db, folder):
                 inst = ParticleInstance(name=row["name"],
                                         particle_id=int(row["particle_id"]),
                                         initial_state=row["initial_state"],
-                                        position=np.array(row["position"]),
+                                        position=np.array([row["posx"],row["posy"],row["posz"]],dtype='float64'),
                                         added_to_engine=row["added_to_engine"],
+                                        fix=[row["fixx"],row["fixy"],row["fixz"]],
                                         residue_id=None if residue_val == "" else int(residue_val),
                                         molecule_id=None if molecule_val == "" else int(molecule_val),
                                         assembly_id=None if assembly_val == "" else int(assembly_val))
@@ -439,8 +440,13 @@ def _save_database_csv(db, folder):
                             "name": inst.name,
                             "particle_id": int(inst.particle_id),
                             "initial_state": inst.initial_state,
-                            "position": inst.position,
+                            "posx": inst.position[0],
+                            "posy": inst.position[1],
+                            "posz": inst.position[2],
                             "added_to_engine":inst.added_to_engine,
+                            "fixx":inst.fix[0],
+                            "fixy":inst.fix[1],
+                            "fixz":inst.fix[2],
                             "residue_id": int(inst.residue_id) if inst.residue_id is not None else "",
                             "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else "",
                             "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else ""})
@@ -484,7 +490,7 @@ def _save_database_csv(db, folder):
                     rows.append({"name": getattr(inst, "name", None)})
 
         df = pd.DataFrame(rows)
-        df.to_csv(os.path.join(folder, f"instances_{pmb_type}.csv"), index=False,float_format="%.17g")
+        df.to_csv(os.path.join(folder, f"instances_{pmb_type}.csv"), index=False,float_format="%.12f")
 
     # REACTIONS
     rows = []
