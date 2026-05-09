@@ -421,7 +421,7 @@ class Test(ut.TestCase):
                             number_of_molecules=-1,
                             box_l=box_l,
                             use_default_bond=True)
-        pmb.add_instances_to_engine()
+        ### No particle instances are added thus no need to add them to the engine 
         # If no particles have been created, only two particles should be in the system (from the previous test)
         self.assertEqual(first=len(espresso_system.part.all()), 
                         second=starting_number_of_particles)
