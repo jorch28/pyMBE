@@ -372,12 +372,7 @@ class pymbe_library():
             'str':
                 Label identifying the appropriate particle ID map. 
         """
-        if pmb_type in self.db._assembly_like_types:
-            label="assembly_map"
-        elif pmb_type in self.db._molecule_like_types:
-            label="molecule_map"
-        else:
-            label=f"{pmb_type}_map"
+        label=self.db._get_label_id_map(pmb_type=pmb_type)
         return label
 
     def _get_residue_list_from_sequence(self, sequence):
@@ -476,20 +471,14 @@ class pymbe_library():
             - Periodic boundary conditions are *not* unfolded; positions are taken
             directly from ESPResSo particle coordinates.
         """
-        center_of_mass = np.zeros(3)
-        axis_list = [0,1,2]
-        inst = self.db.get_instance(pmb_type=pmb_type,
-                                    instance_id=instance_id)
-        print(inst," instance center of mass")
-        print(inst.name,"name instance")
-        particle_id_list = self.get_particle_id_map(object_name=inst.name)["all"]
-        for pid in particle_id_list:
-            for axis in axis_list:
-                center_of_mass[axis] += self.db.get_instance(pmb_type='particle',
-                                    instance_id=pid).position[axis]
-        center_of_mass = center_of_mass / len(particle_id_list)
+        if isinstance(self.simulation_engine,EspressoSimulation):
+            center_of_mass=self.simulation_engine.calculate_center_of_mass(instance_id=instance_id,
+                                                            pmb_type=pmb_type)
+        elif isinstance(self.simulation_engine,LammpsSimulation):
+            raise NotImplementedError('In this version it has not yet been implemented this method for LammpsSimulation engine')
+        else:
+            raise RuntimeError('Please set a currently working simulation engine')
         return center_of_mass
-
     def calculate_HH(self, template_name, pH_list=None, pka_set=None):
         """
         Calculates the charge in the template object according to the ideal  Henderson–Hasselbalch titration curve.
@@ -677,35 +666,13 @@ class pymbe_library():
             dict:
                 {"mean": mean_net_charge, "instances": {instance_id: net_charge}}
         """
-        id_map = self.get_particle_id_map(object_name=object_name)
-        label = self._get_label_id_map(pmb_type=pmb_type)
-        instance_map = id_map[label]
-        charges = {}
-        for instance_id, particle_ids in instance_map.items():
-            if dimensionless:
-                net_charge = 0.0
-            else:
-                net_charge = 0 * self.units.Quantity(1, "reduced_charge")
-            for pid in particle_ids:
-                particle_instance=self.db.get_instance(pmb_type='particle',
-                                     instance_id=pid)
-                particle_name=particle_instance.name
-                particle_tpl = self.db.get_template(pmb_type="particle",
-                                          name=particle_name)
-                particle_state = self.db.get_template(pmb_type="particle_state",
-                                                    name=particle_tpl.initial_state)
-                q = particle_state.z
-                if not dimensionless:
-                    q *= self.units.Quantity(1, "reduced_charge")
-                net_charge += q
-            charges[instance_id] = net_charge
-        # Mean charge
-        if dimensionless:
-            mean_charge = float(np.mean(list(charges.values())))
+        if isinstance(self.simulation_engine,EspressoSimulation):
+            net_charge=self.simulation_engine.calculate_net_charge(object_name,pmb_type,dimensionless)
+        elif isinstance(self.simulation_engine,LammpsSimulation):
+            raise NotImplementedError('In this version this method is only implemented with espresso')
         else:
-            mean_charge = (np.mean([q.magnitude for q in charges.values()])* self.units.Quantity(1, "reduced_charge"))
-        return {"mean": mean_charge, "instances": charges}
-
+            raise RuntimeError('Please set a currently working simulation engine')
+        return net_charge
     def center_object_in_simulation_box(self, instance_id, box_l,pmb_type):
         """
         Centers a pyMBE object instance in the simulation box of an ESPResSo system.
@@ -1393,31 +1360,6 @@ class pymbe_library():
                                  particle_id2=side_chain_beads_ids[0],
                                  use_default_bond=use_default_bond)        
         return  residue_id 
-     
-    def change_volume_and_rescale_particles(self, d_new, dir="xyz"):
-
-        rescale_factor=np.array([1,1,1])
-        if d_new<=0:
-            raise ValueError("The dimension cannot be negative, neither 0")
-        if "x" in dir:
-            rescale_factor[0]=d_new/self.simulation_engine.box_l[0]
-        if "y" in dir:
-            rescale_factor[1]=d_new/self.simulation_engine.box_l[1]
-        if "z" in dir:
-            rescale_factor[2]=d_new/self.simulation_engine.box_l[2]
-
-        instances=self.get_instances_df(pmb_type='particle')
-        for pid in range(instances.index.size):
-            es_pos=self.db.get_instance(instance_id=pid,
-                                        pmb_type='particle').position
-            rescaled_position=es_pos*rescale_factor
-            self.db._update_instance(instance_id=pid,
-                                     pmb_type='particle',
-                                     attribute='position',
-                                     value=rescaled_position)
-            
-        self.simulation_engine.change_volume_and_rescale_particles(d_new=d_new,
-                                                                   dir=dir)
     
 
     def define_bond(self, bond_type, bond_parameters, particle_pairs):
@@ -1852,63 +1794,10 @@ class pymbe_library():
             Landsgesell (PhD thesis, Sec. 5.3, doi:10.18419/opus-10831), adapted
             from the original code (doi:10.18419/darus-2237).
         """
-        def determine_reservoir_concentrations_selfconsistently(cH_res, c_salt_res):
-            """
-            Iteratively determines reservoir ion concentrations self-consistently.
-
-            Args:
-                cH_res ('pint.Quantity'):
-                    Current estimate of the H⁺ concentration.
-                c_salt_res ('pint.Quantity'):
-                    Concentration of monovalent salt in the reservoir.
-
-            Returns:
-                'tuple':
-                    (cH_res, cOH_res, cNa_res, cCl_res)
-            """
-            # Initial ideal estimate
-            cOH_res = self.Kw / cH_res
-            if cOH_res >= cH_res:
-                cNa_res = c_salt_res + (cOH_res - cH_res)
-                cCl_res = c_salt_res
-            else:
-                cCl_res = c_salt_res + (cH_res - cOH_res)
-                cNa_res = c_salt_res
-            # Self-consistent iteration
-            for _ in range(max_number_sc_runs):
-                ionic_strength_res = 0.5 * (cNa_res + cCl_res + cOH_res + cH_res)
-                cOH_new = self.Kw / (cH_res * activity_coefficient_monovalent_pair(ionic_strength_res))
-                if cOH_new >= cH_res:
-                    cNa_new = c_salt_res + (cOH_new - cH_res)
-                    cCl_new = c_salt_res
-                else:
-                    cCl_new = c_salt_res + (cH_res - cOH_new)
-                    cNa_new = c_salt_res
-                # Update values
-                cOH_res = cOH_new
-                cNa_res = cNa_new
-                cCl_res = cCl_new
-            return cH_res, cOH_res, cNa_res, cCl_res
-        # Initial guess for H+ concentration from target pH
-        cH_res = 10 ** (-pH_res) * self.units.mol / self.units.l
-        # First self-consistent solve
-        cH_res, cOH_res, cNa_res, cCl_res = (determine_reservoir_concentrations_selfconsistently(cH_res, 
-                                                                                                 c_salt_res))
-        ionic_strength_res = 0.5 * (cNa_res + cCl_res + cOH_res + cH_res)
-        determined_pH = -np.log10(cH_res.to("mol/L").magnitude* np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
-        # Outer loop to enforce target pH
-        while abs(determined_pH - pH_res) > 1e-6:
-            if determined_pH > pH_res:
-                cH_res *= 1.005
-            else:
-                cH_res /= 1.003
-            cH_res, cOH_res, cNa_res, cCl_res = (determine_reservoir_concentrations_selfconsistently(cH_res, 
-                                                                                                     c_salt_res))
-            ionic_strength_res = 0.5 * (cNa_res + cCl_res + cOH_res + cH_res)
-            determined_pH = -np.log10(cH_res.to("mol/L").magnitude * np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
+        cH_res, cOH_res, cNa_res, cCl_res = self.simulation_engine.determine_reservoir_concentrations( pH_res, c_salt_res, activity_coefficient_monovalent_pair, max_number_sc_runs)
         return cH_res, cOH_res, cNa_res, cCl_res
 
-    def enable_motion_of_rigid_object(self, instance_id, pmb_type, espresso_system):
+    def enable_motion_of_rigid_object(self, instance_id, pmb_type):
         """
         Enables translational and rotational motion of a rigid pyMBE object instance
         in an ESPResSo system.This method creates a rigid-body center particle at the center of mass of
@@ -1938,24 +1827,12 @@ class pymbe_library():
             - The rotational inertia tensor is approximated from the squared
             distances of the particles to the center of mass.
         """
-        logging.info('enable_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
-        inst = self.db.get_instance(pmb_type=pmb_type,
-                                    instance_id=instance_id)
-        label = self._get_label_id_map(pmb_type=pmb_type)
-        particle_ids_list = self.get_particle_id_map(object_name=inst.name)[label][instance_id]
-        center_of_mass = self.calculate_center_of_mass (instance_id=instance_id,
-                                                        pmb_type=pmb_type)
-        rigid_object_center = espresso_system.part.add(pos=center_of_mass,
-                                                        rotation=[True,True,True], 
-                                                        type=self.propose_unused_type())
-        rigid_object_center.mass = len(particle_ids_list)
-        momI = 0
-        for pid in particle_ids_list:
-            momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
-        rigid_object_center.rinertia = np.ones(3) * momI        
-        for particle_id in particle_ids_list:
-            pid = espresso_system.part.by_id(particle_id)
-            pid.vs_auto_relate_to(rigid_object_center.id)
+        if isinstance(self.simulation_engine,EspressoSimulation):
+            self.simulation_engine.enable_motion_of_rigid_object(instance_id, pmb_type)
+        elif isinstance(self.simulation_engine,LammpsSimulation):
+            raise NotImplementedError('In this current version LammpsSimulation is not yet implemented')
+        else:
+            raise RuntimeError('Please setup a currently working simulation engine')
 
     def generate_coordinates_outside_sphere(self, center, radius, max_dist, n_samples):
         """
@@ -2173,26 +2050,8 @@ class pymbe_library():
             - Currently, the only 'combining_rule' supported is Lorentz-Berthelot.
             - If the sigma value of 'particle_name1' or 'particle_name2' is 0, the function will return an empty dictionary. No LJ interactions are set up for particles with sigma = 0.
         """
-        supported_combining_rules=["Lorentz-Berthelot"]
-        if combining_rule not in supported_combining_rules:
-            raise ValueError(f"Combining_rule {combining_rule} currently not implemented in pyMBE, valid keys are {supported_combining_rules}")
-        part_tpl1 = self.db.get_template(name=particle_name1,
-                                         pmb_type="particle")
-        part_tpl2 = self.db.get_template(name=particle_name2,
-                                         pmb_type="particle")
-        lj_parameters1 = part_tpl1.get_lj_parameters(ureg=self.units)
-        lj_parameters2 = part_tpl2.get_lj_parameters(ureg=self.units)
-
-        # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
-        if part_tpl1.sigma.magnitude == 0 or part_tpl2.sigma.magnitude == 0:
-            return {}
-        # Apply combining rule
-        if combining_rule == 'Lorentz-Berthelot':
-            sigma=(lj_parameters1["sigma"]+lj_parameters2["sigma"])/2
-            cutoff=(lj_parameters1["cutoff"]+lj_parameters2["cutoff"])/2
-            offset=(lj_parameters1["offset"]+lj_parameters2["offset"])/2
-            epsilon=np.sqrt(lj_parameters1["epsilon"]*lj_parameters2["epsilon"])
-        return {"sigma": sigma, "cutoff": cutoff, "offset": offset, "epsilon": epsilon}    
+        lj_parameters=self.db.get_lj_parameters(particle_name1=particle_name1,particle_name2=particle_name2,combining_rule=combining_rule)
+        return lj_parameters
 
     def get_particle_id_map(self, object_name):
         """
@@ -2263,17 +2122,7 @@ class pymbe_library():
         Notes:
             - The radius corresponds to (sigma+offset)/2
         """
-        if "particle" not in self.db._templates:
-            return {}          
-        result = {}
-        for _, tpl in self.db._templates["particle"].items():
-            radius = (tpl.sigma.to_quantity(self.units) + tpl.offset.to_quantity(self.units))/2.0
-            if dimensionless:
-                magnitude_reduced_length = radius.m_as("reduced_length")
-                radius = magnitude_reduced_length
-            for state in self.db.get_particle_states_templates(particle_name=tpl.name).values():
-                result[state.es_type] = radius
-        return result
+        return self.db.get_radius_map(dimensionless)
 
     def get_reactions_df(self):
         """
@@ -2415,15 +2264,8 @@ class pymbe_library():
             ('int'): 
                 The next available integer ESPResSo type. Returns ''0'' if no integer types are currently defined.
         """
-        type_map = self.get_type_map()
-        # Flatten all es_type values across all particles and states
-        all_types = []
-        for es_type in type_map.values():
-            all_types.append(es_type)
-        # If no es_types exist, start at 0
-        if not all_types:
-            return 0
-        return max(all_types) + 1
+        
+        return self.db.propose_unused_type()
        
     def read_protein_vtf(self, filename, unit_length=None):
         """
@@ -2604,12 +2446,18 @@ class pymbe_library():
             self.simulation_engine=EspressoSimulation(box_l=simulation_engine.box_l,
                                                       db=self.db,
                                                       espresso_system=simulation_engine,
-                                                      units=self.units)
+                                                      units=self.units,
+                                                      kT=self.kT,
+                                                      Kw=self.Kw,
+                                                      seed=self.seed)
         elif isinstance(simulation_engine,LammpsProtocol): 
             self.simulation_engine=LammpsSimulation(box_l=box_l,
                                                       db=self.db,
                                                       lammps=simulation_engine,
-                                                      units=self.units)
+                                                      units=self.units,
+                                                      kT=self.kT,
+                                                      Kw=self.Kw,
+                                                      seed=self.seed)
         else:
             raise ValueError('The specified simulation engine is not implemented yet')
 
@@ -2635,50 +2483,18 @@ class pymbe_library():
             ('reaction_methods.ConstantpHEnsemble'): 
                 Instance of a reaction_methods.ConstantpHEnsemble object from the espressomd library.
         """
-        from espressomd import reaction_methods
-        if exclusion_range is None:
-            exclusion_range = max(self.get_radius_map().values())*2.0
-        if use_exclusion_radius_per_type:
-            exclusion_radius_per_type = self.get_radius_map()
+
+        if isinstance(self.simulation_engine,EspressoSimulation):
+            RE = self.simulation_engine.setup_cpH(counter_ion=counter_ion, 
+                                                  constant_pH=constant_pH, 
+                                                  exclusion_range=exclusion_range, 
+                                                  use_exclusion_radius_per_type = use_exclusion_radius_per_type)
+            return RE
+        elif isinstance(self.simulation_engine,LammpsSimulation):
+            raise NotImplementedError('In this version espresso has only been decoupled. Interoperability with other engines is not yet provided')
         else:
-            exclusion_radius_per_type = {}
-        RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude,
-                                                exclusion_range=exclusion_range, 
-                                                seed=self.seed, 
-                                                constant_pH=constant_pH,
-                                                exclusion_radius_per_type = exclusion_radius_per_type)
-        conterion_tpl = self.db.get_template(name=counter_ion,
-                                             pmb_type="particle")
-        conterion_state = self.db.get_template(name=conterion_tpl.initial_state,
-                                               pmb_type="particle_state")
-        for reaction in self.db.get_reactions():
-            if reaction.reaction_type not in ["monoprotic_acid", "monoprotic_base"]:
-                continue
-            default_charges = {}
-            reactant_types  = []
-            product_types   = []
-            for participant in reaction.participants:
-                state_tpl = self.db.get_template(name=participant.state_name,
-                                                 pmb_type="particle_state")
-                default_charges[state_tpl.es_type] = state_tpl.z
-                if participant.coefficient < 0:
-                    reactant_types.append(state_tpl.es_type)
-                elif participant.coefficient > 0:
-                    product_types.append(state_tpl.es_type)
-            # Add counterion to the products
-            if conterion_state.es_type not in product_types:
-                product_types.append(conterion_state.es_type)
-                default_charges[conterion_state.es_type] = conterion_state.z
-                reaction.add_participant(particle_name=counter_ion,
-                                         state_name=conterion_tpl.initial_state,
-                                         coefficient=1)
-            gamma=10**-reaction.pK
-            RE.add_reaction(gamma=gamma,
-                            reactant_types=reactant_types,
-                            product_types=product_types,
-                            default_charges=default_charges)
-            reaction.add_simulation_method(simulation_method="cpH")
-        return RE
+            raise RuntimeError('You need to set your simulation Engine')
+
 
     def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
@@ -2708,55 +2524,19 @@ class pymbe_library():
             ('reaction_methods.ReactionEnsemble'): 
                 Instance of a reaction_methods.ReactionEnsemble object from the espressomd library.
         """
-        from espressomd import reaction_methods
-        if exclusion_range is None:
-            exclusion_range = max(self.get_radius_map().values())*2.0
-        if use_exclusion_radius_per_type:
-            exclusion_radius_per_type = self.get_radius_map()
+        if isinstance(self.simulation_engine,EspressoSimulation):
+            RE = self.simulation_engine.setup_gcmc(c_salt_res=c_salt_res, 
+                                                    salt_anion_name=salt_anion_name, 
+                                                    salt_cation_name=salt_cation_name, 
+                                                    activity_coefficient=activity_coefficient, 
+                                                    exclusion_range=exclusion_range, 
+                                                    use_exclusion_radius_per_type = use_exclusion_radius_per_type)
+            return RE
+        elif isinstance(self.simulation_engine,LammpsSimulation):
+            raise NotImplementedError('In this version espresso has only been decoupled. Interoperability with other engines is not yet provided')
         else:
-            exclusion_radius_per_type = {}
-        RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
-                                               exclusion_range=exclusion_range, 
-                                               seed=self.seed, 
-                                               exclusion_radius_per_type = exclusion_radius_per_type)
-        # Determine the concentrations of the various species in the reservoir and the equilibrium constants
-        determined_activity_coefficient = activity_coefficient(c_salt_res)
-        K_salt = (c_salt_res.to('1/(N_A * reduced_length**3)')**2) * determined_activity_coefficient
-        cation_tpl = self.db.get_template(pmb_type="particle",
-                                          name=salt_cation_name)
-        cation_state = self.db.get_template(pmb_type="particle_state",
-                                            name=cation_tpl.initial_state)
-        anion_tpl = self.db.get_template(pmb_type="particle",
-                                          name=salt_anion_name)
-        anion_state = self.db.get_template(pmb_type="particle_state",
-                                            name=anion_tpl.initial_state)
-        salt_cation_es_type = cation_state.es_type
-        salt_anion_es_type = anion_state.es_type     
-        salt_cation_charge = cation_state.z
-        salt_anion_charge = anion_state.z
-        if salt_cation_charge <= 0:
-            raise ValueError('ERROR salt cation charge must be positive, charge ', salt_cation_charge)
-        if salt_anion_charge >= 0:
-            raise ValueError('ERROR salt anion charge must be negative, charge ', salt_anion_charge)
-        # Grand-canonical coupling to the reservoir
-        RE.add_reaction(gamma = K_salt.magnitude,
-                        reactant_types = [],
-                        reactant_coefficients = [],
-                        product_types = [ salt_cation_es_type, salt_anion_es_type ],
-                        product_coefficients = [ 1, 1 ],
-                        default_charges = {salt_cation_es_type: salt_cation_charge, 
-                                           salt_anion_es_type: salt_anion_charge})
-        rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=salt_cation_name,
-                                                            state_name=cation_state.name,
-                                                            coefficient=1),
-                                        ReactionParticipant(particle_name=salt_anion_name,
-                                                            state_name=anion_state.name,
-                                                            coefficient=1)],
-                           pK=-np.log10(K_salt.magnitude),
-                           reaction_type="ion_insertion",
-                           simulation_method="GCMC")
-        self.db._register_reaction(rx_tpl)
-        return RE
+            raise RuntimeError('You need to set your simulation Engine')
+        
 
     def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
@@ -2805,259 +2585,21 @@ class pymbe_library():
 
         [1] Landsgesell, J., Hebbeker, P., Rud, O., Lunkad, R., Košovan, P., & Holm, C. (2020). Grand-reaction method for simulations of ionization equilibria coupled to ion partitioning. Macromolecules, 53(8), 3007-3020.
         """
-        from espressomd import reaction_methods
-        if exclusion_range is None:
-            exclusion_range = max(self.get_radius_map().values())*2.0
-        if use_exclusion_radius_per_type:
-            exclusion_radius_per_type = self.get_radius_map()
+        if isinstance(self.simulation_engine,EspressoSimulation):
+            RE, ionic_strength_res=self.simulation_engine.setup_grxmc_reactions(pH_res=pH_res, 
+                                                                                c_salt_res=c_salt_res, 
+                                                                                proton_name=proton_name, 
+                                                                                hydroxide_name=hydroxide_name, 
+                                                                                salt_cation_name=salt_cation_name, 
+                                                                                salt_anion_name=salt_anion_name, 
+                                                                                activity_coefficient=activity_coefficient, 
+                                                                                exclusion_range=exclusion_range, 
+                                                                                use_exclusion_radius_per_type=use_exclusion_radius_per_type)
+            return RE, ionic_strength_res
+        elif isinstance(self.simulation_engine,LammpsSimulation):
+            raise NotImplementedError('In this version espresso has only been decoupled. Interoperability with other engines is not yet provided')
         else:
-            exclusion_radius_per_type = {}
-        RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
-                                               exclusion_range=exclusion_range, 
-                                               seed=self.seed, 
-                                               exclusion_radius_per_type = exclusion_radius_per_type)
-        # Determine the concentrations of the various species in the reservoir and the equilibrium constants
-        cH_res, cOH_res, cNa_res, cCl_res = self.determine_reservoir_concentrations(pH_res, c_salt_res, activity_coefficient)
-        ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-        determined_activity_coefficient = activity_coefficient(ionic_strength_res)
-        K_W = cH_res.to('1/(N_A * reduced_length**3)') * cOH_res.to('1/(N_A * reduced_length**3)') * determined_activity_coefficient
-        K_NACL = cNa_res.to('1/(N_A * reduced_length**3)') * cCl_res.to('1/(N_A * reduced_length**3)') * determined_activity_coefficient
-        K_HCL = cH_res.to('1/(N_A * reduced_length**3)') * cCl_res.to('1/(N_A * reduced_length**3)') * determined_activity_coefficient
-        cation_tpl = self.db.get_template(pmb_type="particle",
-                                          name=salt_cation_name)
-        cation_state = self.db.get_template(pmb_type="particle_state",
-                                            name=cation_tpl.initial_state)
-        anion_tpl = self.db.get_template(pmb_type="particle",
-                                          name=salt_anion_name)
-        anion_state = self.db.get_template(pmb_type="particle_state",
-                                            name=anion_tpl.initial_state)
-        proton_tpl = self.db.get_template(pmb_type="particle",
-                                          name=proton_name)
-        proton_state = self.db.get_template(pmb_type="particle_state",
-                                            name=proton_tpl.initial_state)
-        hydroxide_tpl = self.db.get_template(pmb_type="particle",
-                                             name=hydroxide_name)
-        hydroxide_state = self.db.get_template(pmb_type="particle_state",
-                                               name=hydroxide_tpl.initial_state)
-        proton_es_type = proton_state.es_type
-        hydroxide_es_type = hydroxide_state.es_type
-        salt_cation_es_type = cation_state.es_type
-        salt_anion_es_type = anion_state.es_type
-        proton_charge = proton_state.z
-        hydroxide_charge = hydroxide_state.z          
-        salt_cation_charge = cation_state.z
-        salt_anion_charge = anion_state.z      
-        if proton_charge <= 0:
-            raise ValueError('ERROR proton charge must be positive, charge ', proton_charge)
-        if salt_cation_charge <= 0:
-            raise ValueError('ERROR salt cation charge must be positive, charge ', salt_cation_charge)
-        if hydroxide_charge >= 0:
-            raise ValueError('ERROR hydroxide charge must be negative, charge ', hydroxide_charge)
-        if salt_anion_charge >= 0:
-            raise ValueError('ERROR salt anion charge must be negative, charge ', salt_anion_charge)
-        # Grand-canonical coupling to the reservoir
-        # 0 = H+ + OH-
-        RE.add_reaction(gamma = K_W.magnitude,
-                        reactant_types = [],
-                        reactant_coefficients = [],
-                        product_types = [ proton_es_type, hydroxide_es_type ],
-                        product_coefficients = [ 1, 1 ],
-                        default_charges = {proton_es_type: proton_charge, 
-                                           hydroxide_es_type: hydroxide_charge})
-        rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=proton_name,
-                                                            state_name=proton_state.name,
-                                                            coefficient=1),
-                                        ReactionParticipant(particle_name=hydroxide_name,
-                                                            state_name=hydroxide_state.name,
-                                                            coefficient=1)],
-                           pK=-np.log10(K_W.magnitude),
-                           reaction_type="ion_insertion",
-                           simulation_method="GRxMC")
-        self.db._register_reaction(rx_tpl)
-        # 0 = Na+ + Cl-
-        RE.add_reaction(gamma = K_NACL.magnitude,
-                        reactant_types = [],
-                        reactant_coefficients = [],
-                        product_types = [ salt_cation_es_type, salt_anion_es_type ],
-                        product_coefficients = [ 1, 1 ],
-                        default_charges = {salt_cation_es_type: salt_cation_charge, 
-                                        salt_anion_es_type: salt_anion_charge})
-        rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=salt_cation_name,
-                                                            state_name=cation_state.name,
-                                                            coefficient=1),
-                                        ReactionParticipant(particle_name=salt_anion_name,
-                                                            state_name=anion_state.name,
-                                                            coefficient=1)],
-                           pK=-np.log10(K_NACL.magnitude),
-                           reaction_type="ion_insertion",
-                           simulation_method="GRxMC")
-        self.db._register_reaction(rx_tpl)
-        # 0 = Na+ + OH-
-        RE.add_reaction(gamma = (K_NACL * K_W / K_HCL).magnitude,
-                        reactant_types = [],
-                        reactant_coefficients = [],
-                        product_types = [ salt_cation_es_type, hydroxide_es_type ],
-                        product_coefficients = [ 1, 1 ],
-                        default_charges = {salt_cation_es_type: salt_cation_charge, 
-                                           hydroxide_es_type: hydroxide_charge})
-        rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=salt_cation_name,
-                                                            state_name=cation_state.name,
-                                                            coefficient=1),
-                                        ReactionParticipant(particle_name=hydroxide_name,
-                                                            state_name=hydroxide_state.name,
-                                                            coefficient=1)],
-                           pK=-np.log10((K_NACL * K_W / K_HCL).magnitude),
-                           reaction_type="ion_insertion",
-                           simulation_method="GRxMC")
-        self.db._register_reaction(rx_tpl)
-        # 0 = H+ + Cl-
-        RE.add_reaction(gamma = K_HCL.magnitude,
-                        reactant_types = [],
-                        reactant_coefficients = [],
-                        product_types = [ proton_es_type, salt_anion_es_type ],
-                        product_coefficients = [ 1, 1 ],
-                        default_charges = {proton_es_type: proton_charge, 
-                                           salt_anion_es_type: salt_anion_charge})
-        rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=proton_name,
-                                                            state_name=proton_state.name,
-                                                            coefficient=1),
-                                        ReactionParticipant(particle_name=salt_anion_name,
-                                                            state_name=anion_state.name,
-                                                            coefficient=1)],
-                           pK=-np.log10(K_HCL.magnitude),
-                           reaction_type="ion_insertion",
-                           simulation_method="GRxMC")
-        self.db._register_reaction(rx_tpl)
-        # Annealing moves to ensure sufficient sampling
-        # Cation annealing H+ = Na+
-        RE.add_reaction(gamma = (K_NACL / K_HCL).magnitude,
-                        reactant_types = [proton_es_type],
-                        reactant_coefficients = [ 1 ],
-                        product_types = [ salt_cation_es_type ],
-                        product_coefficients = [ 1 ],
-                        default_charges = {proton_es_type: proton_charge, 
-                                           salt_cation_es_type: salt_cation_charge})
-        rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=proton_name,
-                                                            state_name=proton_state.name,
-                                                            coefficient=-1),
-                                        ReactionParticipant(particle_name=salt_cation_name,
-                                                            state_name=cation_state.name,
-                                                            coefficient=1)],
-                           pK=-np.log10((K_NACL / K_HCL).magnitude),
-                           reaction_type="particle replacement",
-                           simulation_method="GRxMC")
-        self.db._register_reaction(rx_tpl)
-        # Anion annealing OH- = Cl- 
-        RE.add_reaction(gamma = (K_HCL / K_W).magnitude,
-                        reactant_types = [hydroxide_es_type],
-                        reactant_coefficients = [ 1 ],
-                        product_types = [ salt_anion_es_type ],
-                        product_coefficients = [ 1 ],
-            default_charges = {hydroxide_es_type: hydroxide_charge, 
-                               salt_anion_es_type: salt_anion_charge})
-        rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=hydroxide_name,
-                                                            state_name=hydroxide_state.name,
-                                                            coefficient=-1),
-                                        ReactionParticipant(particle_name=salt_anion_name,
-                                                            state_name=anion_state.name,
-                                                            coefficient=1)],
-                           pK=-np.log10((K_HCL / K_W).magnitude),
-                           reaction_type="particle replacement",
-                           simulation_method="GRxMC")
-        self.db._register_reaction(rx_tpl)
-        for reaction in self.db.get_reactions():
-            if reaction.reaction_type not in ["monoprotic_acid", "monoprotic_base"]:
-                continue
-            default_charges = {}
-            reactant_types  = []
-            product_types   = []
-            for participant in reaction.participants:
-                state_tpl = self.db.get_template(name=participant.state_name,
-                                                 pmb_type="particle_state")
-                default_charges[state_tpl.es_type] = state_tpl.z
-                if participant.coefficient < 0:
-                    reactant_types.append(state_tpl.es_type)
-                    reactant_name=state_tpl.particle_name
-                    reactant_state_name=state_tpl.name
-                elif participant.coefficient > 0:
-                    product_types.append(state_tpl.es_type)
-                    product_name=state_tpl.particle_name
-                    product_state_name=state_tpl.name
-
-            Ka = (10**-reaction.pK * self.units.mol/self.units.l).to('1/(N_A * reduced_length**3)')
-            # Reaction in terms of proton: HA = A + H+
-            RE.add_reaction(gamma=Ka.magnitude,
-                            reactant_types=reactant_types,
-                            reactant_coefficients=[1],
-                            product_types=product_types+[proton_es_type],
-                            product_coefficients=[1, 1],
-                            default_charges= default_charges | {proton_es_type: proton_charge})
-            reaction.add_participant(particle_name=proton_name,
-                                     state_name=proton_state.name,
-                                     coefficient=1)
-            reaction.add_simulation_method("GRxMC")
-            # Reaction in terms of salt cation: HA = A + Na+
-            RE.add_reaction(gamma=(Ka * K_NACL / K_HCL).magnitude,
-                            reactant_types=reactant_types,
-                            reactant_coefficients=[1],
-                            product_types=product_types+[salt_cation_es_type],
-                            product_coefficients=[1, 1],
-                            default_charges=default_charges | {salt_cation_es_type: salt_cation_charge})
-            rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=reactant_name,
-                                                                state_name=reactant_state_name,
-                                                                coefficient=-1),
-                                            ReactionParticipant(particle_name=product_name,
-                                                                state_name=product_state_name,
-                                                                coefficient=1),
-                                            ReactionParticipant(particle_name=salt_cation_name,
-                                                                state_name=cation_state.name,
-                                                                coefficient=1),],
-                              pK=-np.log10((Ka * K_NACL / K_HCL).magnitude),
-                              reaction_type=reaction.reaction_type+"_salt",
-                              simulation_method="GRxMC")
-            self.db._register_reaction(rx_tpl)
-            # Reaction in terms of hydroxide: OH- + HA = A
-            RE.add_reaction(gamma=(Ka / K_W).magnitude,
-                            reactant_types=reactant_types+[hydroxide_es_type],
-                            reactant_coefficients=[1, 1],
-                            product_types=product_types,
-                            product_coefficients=[1],
-                            default_charges=default_charges | {hydroxide_es_type: hydroxide_charge})
-            rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=reactant_name,
-                                                                state_name=reactant_state_name,
-                                                                coefficient=-1),
-                                            ReactionParticipant(particle_name=product_name,
-                                                                state_name=product_state_name,
-                                                                coefficient=1),
-                                            ReactionParticipant(particle_name=hydroxide_name,
-                                                                state_name=hydroxide_state.name,
-                                                                coefficient=-1),],
-                              pK=-np.log10((Ka / K_W).magnitude),
-                              reaction_type=reaction.reaction_type+"_conjugate",
-                              simulation_method="GRxMC")
-            self.db._register_reaction(rx_tpl)
-            # Reaction in terms of salt anion: Cl- + HA = A
-            RE.add_reaction(gamma=(Ka / K_HCL).magnitude,
-                            reactant_types=reactant_types+[salt_anion_es_type],
-                            reactant_coefficients=[1, 1],
-                            product_types=product_types,
-                            product_coefficients=[1],
-                            default_charges=default_charges | {salt_anion_es_type: salt_anion_charge})
-            rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=reactant_name,
-                                                                state_name=reactant_state_name,
-                                                                coefficient=-1),
-                                            ReactionParticipant(particle_name=product_name,
-                                                                state_name=product_state_name,
-                                                                coefficient=1),
-                                            ReactionParticipant(particle_name=salt_anion_name,
-                                                                state_name=anion_state.name,
-                                                                coefficient=-1),],
-                              pK=-np.log10((Ka / K_HCL).magnitude),
-                              reaction_type=reaction.reaction_type+"_salt",
-                              simulation_method="GRxMC")
-            self.db._register_reaction(rx_tpl)
-        return RE, ionic_strength_res
-
+            raise RuntimeError('You need to set your simulation Engine')
     def setup_grxmc_unified(self, pH_res, c_salt_res, cation_name, anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
         Sets up acid/base reactions for acidic/basic 'particles' defined in the pyMBE database, as well as a grand-canonical coupling to a 
@@ -3101,114 +2643,22 @@ class pymbe_library():
         [1] Curk, T., Yuan, J., & Luijten, E. (2022). Accelerated simulation method for charge regulation effects. The Journal of Chemical Physics, 156(4).
         [2] Landsgesell, J., Hebbeker, P., Rud, O., Lunkad, R., Košovan, P., & Holm, C. (2020). Grand-reaction method for simulations of ionization equilibria coupled to ion partitioning. Macromolecules, 53(8), 3007-3020.
         """
-        from espressomd import reaction_methods
-        if exclusion_range is None:
-            exclusion_range = max(self.get_radius_map().values())*2.0
-        if use_exclusion_radius_per_type:
-            exclusion_radius_per_type = self.get_radius_map()
+        if isinstance(self.simulation_engine,EspressoSimulation):
+            RE, ionic_strength_res=self.simulation_engine.setup_grxmc_unified(pH_res=pH_res, 
+                                                                              c_salt_res=c_salt_res, 
+                                                                              cation_name=cation_name, 
+                                                                              anion_name=anion_name, 
+                                                                              activity_coefficient=activity_coefficient, 
+                                                                              exclusion_range=exclusion_range, 
+                                                                              use_exclusion_radius_per_type = use_exclusion_radius_per_type)
+            return RE, ionic_strength_res
+        elif isinstance(self.simulation_engine,LammpsSimulation):
+            raise NotImplementedError('In this version espresso has only been decoupled. Interoperability with other engines is not yet provided')
         else:
-            exclusion_radius_per_type = {}
-        RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
-                                               exclusion_range=exclusion_range, 
-                                               seed=self.seed, 
-                                               exclusion_radius_per_type = exclusion_radius_per_type)
-        # Determine the concentrations of the various species in the reservoir and the equilibrium constants
-        cH_res, cOH_res, cNa_res, cCl_res = self.determine_reservoir_concentrations(pH_res, c_salt_res, activity_coefficient)
-        ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-        determined_activity_coefficient = activity_coefficient(ionic_strength_res)
-        a_hydrogen = (10 ** (-pH_res) * self.units.mol/self.units.l).to('1/(N_A * reduced_length**3)')
-        a_cation = (cH_res+cNa_res).to('1/(N_A * reduced_length**3)') * np.sqrt(determined_activity_coefficient)
-        a_anion = (cH_res+cNa_res).to('1/(N_A * reduced_length**3)') * np.sqrt(determined_activity_coefficient)
-        K_XX = a_cation * a_anion
-        cation_tpl = self.db.get_template(pmb_type="particle",
-                                          name=cation_name)
-        cation_state = self.db.get_template(pmb_type="particle_state",
-                                            name=cation_tpl.initial_state)
-        anion_tpl = self.db.get_template(pmb_type="particle",
-                                          name=anion_name)
-        anion_state = self.db.get_template(pmb_type="particle_state",
-                                            name=anion_tpl.initial_state)
-        cation_es_type = cation_state.es_type
-        anion_es_type = anion_state.es_type     
-        cation_charge = cation_state.z
-        anion_charge = anion_state.z
-        if cation_charge <= 0:
-            raise ValueError('ERROR cation charge must be positive, charge ', cation_charge)
-        if anion_charge >= 0:
-            raise ValueError('ERROR anion charge must be negative, charge ', anion_charge)
-        # Coupling to the reservoir: 0 = X+ + X-
-        RE.add_reaction(gamma = K_XX.magnitude,
-                        reactant_types = [],
-                        reactant_coefficients = [],
-                        product_types = [ cation_es_type, anion_es_type ],
-                        product_coefficients = [ 1, 1 ],
-                        default_charges = {cation_es_type: cation_charge, 
-                                           anion_es_type: anion_charge})
-        rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=cation_name,
-                                                            state_name=cation_state.name,
-                                                            coefficient=1),
-                                        ReactionParticipant(particle_name=anion_name,
-                                                            state_name=anion_state.name,
-                                                            coefficient=1)],
-                           pK=-np.log10(K_XX.magnitude),
-                           reaction_type="ion_insertion",
-                           simulation_method="GCMC")
-        self.db._register_reaction(rx_tpl)
-        for reaction in self.db.get_reactions():
-            if reaction.reaction_type not in ["monoprotic_acid", "monoprotic_base"]:
-                continue
-            default_charges = {}
-            reactant_types  = []
-            product_types   = []
-            for participant in reaction.participants:
-                state_tpl = self.db.get_template(name=participant.state_name,
-                                                 pmb_type="particle_state")
-                default_charges[state_tpl.es_type] = state_tpl.z
-                if participant.coefficient < 0:
-                    reactant_types.append(state_tpl.es_type)
-                    reactant_name=state_tpl.particle_name
-                    reactant_state_name=state_tpl.name
-                elif participant.coefficient > 0:
-                    product_types.append(state_tpl.es_type)
-                    product_name=state_tpl.particle_name
-                    product_state_name=state_tpl.name
+            raise RuntimeError('You need to set your simulation Engine')
+            
 
-            Ka = (10**-reaction.pK * self.units.mol/self.units.l).to('1/(N_A * reduced_length**3)')
-            gamma_K_AX = Ka.to('1/(N_A * reduced_length**3)').magnitude * a_cation / a_hydrogen
-            # Reaction in terms of small cation: HA = A + X+
-            RE.add_reaction(gamma=gamma_K_AX.magnitude,
-                            reactant_types=reactant_types,
-                            reactant_coefficients=[1],
-                            product_types=product_types+[cation_es_type],
-                            product_coefficients=[1, 1],
-                            default_charges=default_charges|{cation_es_type: cation_charge})
-            reaction.add_participant(particle_name=cation_name,
-                                     state_name=cation_state.name,
-                                     coefficient=1)
-            reaction.add_simulation_method("GRxMC")
-            # Reaction in terms of small anion: X- + HA = A
-            RE.add_reaction(gamma=gamma_K_AX.magnitude / K_XX.magnitude,
-                            reactant_types=reactant_types+[anion_es_type],
-                            reactant_coefficients=[1, 1],
-                            product_types=product_types,
-                            product_coefficients=[1],
-                            default_charges=default_charges|{anion_es_type: anion_charge})
-            rx_tpl = Reaction(participants=[ReactionParticipant(particle_name=reactant_name,
-                                                                state_name=reactant_state_name,
-                                                                coefficient=-1),
-                                            ReactionParticipant(particle_name=product_name,
-                                                                state_name=product_state_name,
-                                                                coefficient=1),
-                                            ReactionParticipant(particle_name=anion_name,
-                                                                state_name=anion_state.name,
-                                                                coefficient=-1),],
-                              pK=-np.log10(gamma_K_AX.magnitude / K_XX.magnitude),
-                              reaction_type=reaction.reaction_type+"_conjugate",
-                              simulation_method="GRxMC")
-            self.db._register_reaction(rx_tpl)
-        return RE, ionic_strength_res
-
-    def setup_lj_interactions(self, espresso_system, shift_potential=True, combining_rule='Lorentz-Berthelot'):
+    def setup_lj_interactions(self, shift_potential=True, combining_rule='Lorentz-Berthelot'):
         """
         Sets up the Lennard-Jones (LJ) potential between all pairs of particle states defined in the pyMBE database.
 
@@ -3230,56 +2680,5 @@ class pymbe_library():
             - Check the documentation of ESPResSo for more info about the potential https://espressomd.github.io/doc4.2.0/inter_non-bonded.html
 
         """
-        from itertools import combinations_with_replacement
-        particle_templates = self.db.get_templates("particle")
-        shift = "auto" if shift_potential else 0
-        if shift == "auto":
-            shift_tpl = shift
-        else:
-            shift_tpl = PintQuantity.from_quantity(q=shift*self.units.reduced_length,
-                                                   expected_dimension="length",
-                                                   ureg=self.units)
-        # Get all particle states registered in pyMBE
-        state_entries = []
-        for tpl in particle_templates.values():
-            for state in self.db.get_particle_states_templates(particle_name=tpl.name).values():
-                state_entries.append((tpl, state))
-
-        # Iterate over all unique state pairs
-        for (tpl1, state1), (tpl2, state2) in combinations_with_replacement(state_entries, 2):
-
-            lj_parameters = self.get_lj_parameters(particle_name1=tpl1.name,
-                                                   particle_name2=tpl2.name,
-                                                   combining_rule=combining_rule)
-            if not lj_parameters:
-                continue
-
-            espresso_system.non_bonded_inter[state1.es_type, state2.es_type].lennard_jones.set_params(
-                epsilon=lj_parameters["epsilon"].to("reduced_energy").magnitude,
-                sigma=lj_parameters["sigma"].to("reduced_length").magnitude,
-                cutoff=lj_parameters["cutoff"].to("reduced_length").magnitude,
-                offset=lj_parameters["offset"].to("reduced_length").magnitude,
-                shift=shift)
-                
-            lj_template = LJInteractionTemplate(state1=state1.name,
-                                                state2=state2.name,
-                                                sigma=PintQuantity.from_quantity(q=lj_parameters["sigma"],
-                                                                                 expected_dimension="length",
-                                                                                 ureg=self.units),
-                                                epsilon=PintQuantity.from_quantity(q=lj_parameters["epsilon"],
-                                                                                   expected_dimension="energy",
-                                                                                   ureg=self.units),
-                                                cutoff=PintQuantity.from_quantity(q=lj_parameters["cutoff"],
-                                                                                  expected_dimension="length",
-                                                                                  ureg=self.units),
-                                                offset=PintQuantity.from_quantity(q=lj_parameters["offset"],
-                                                                                  expected_dimension="length",
-                                                                                  ureg=self.units),
-                                                shift=shift_tpl)
-            self.db._register_template(lj_template)
-
-    def update_instances_ids_according_to_engine_particles_ids(self):
-        """
-        Method to be called if particles have been previously added to a simulation engine without using pymbe.
-        """
-        self.simulation_engine.update_instances_ids_according_to_engine_particles_ids()
+        self.simulation_engine.setup_lj_interactions(shift_potential=shift_potential, 
+                                                     combining_rule=combining_rule)
