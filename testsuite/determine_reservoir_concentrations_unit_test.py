@@ -20,13 +20,18 @@
 import pyMBE
 import numpy as np
 import pandas as pd
+import espressomd
 from scipy import interpolate
+pmb = pyMBE.pymbe_library(seed=42)
+Box_L = 7.5*pmb.units.nm
+box_l=[Box_L.to('reduced_length').magnitude]*3
+espresso_system = espressomd.System(box_l = box_l)  
+pmb.set_simulation_engine(espresso_system)
 
 def determine_reservoir_concentrations_test_ideal(pH_res, c_salt_res):
 
     # Create an instance of the pyMBE library
-    pmb = pyMBE.pymbe_library(seed=42)
-
+    
     # Determine the reservoir composition using pyMBE
     cH_res_pyMBE, cOH_res_pyMBE, cNa_res_pyMBE, cCl_res_pyMBE = pmb.determine_reservoir_concentrations(
             pH_res,
@@ -49,8 +54,7 @@ def determine_reservoir_concentrations_test_ideal(pH_res, c_salt_res):
 def determine_reservoir_concentrations_test_interacting(pH_res, c_salt_res, reference_data):
 
     # Create an instance of the pyMBE library
-    pmb = pyMBE.pymbe_library(seed=42)
-
+   
     # Load the excess chemical potential data
     monovalent_salt_ref_data=pd.read_csv(pmb.root / "parameters" / "salt" / "excess_chemical_potential_excess_pressure.csv")
     ionic_strength = pmb.units.Quantity(monovalent_salt_ref_data["cs_bulk_[1/sigma^3]"].values, "1/reduced_length**3")
