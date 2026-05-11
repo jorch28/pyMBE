@@ -130,8 +130,8 @@ data_path = args.output
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 frames_path = args.output / "frames"
 frames_path.mkdir(parents=True, exist_ok=True)
-
-espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
+box_l=[Box_L.to('reduced_length').magnitude] * 3
+espresso_system = espressomd.System(box_l=box_l)
 espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
 #Reads the VTF file of the protein model
@@ -178,18 +178,16 @@ pmb.define_particle(name = anion_name,
 #We create the protein in espresso 
 protein_id = pmb.create_protein(name=protein_name,
                                 number_of_proteins=1,
-                                espresso_system=espresso_system,
+                                box_l=box_l,
                                 topology_dict=topology_dict)[0]
 #Here we activate the motion of the protein 
 if args.move_protein:
     pmb.enable_motion_of_rigid_object(instance_id=protein_id,
-                                      pmb_type="protein",
-                                      espresso_system=espresso_system)
+                                      pmb_type="protein")
 
 # Here we put the protein on the center of the simulation box
 pmb.center_object_in_simulation_box(instance_id=protein_id,
-                                    pmb_type="protein",
-                                    espresso_system=espresso_system)
+                                    pmb_type="protein")
 
 if not args.ideal:
     # Estimate the radius of the protein
@@ -218,7 +216,7 @@ if not args.ideal:
         counter_ion_name=cation_name
 
     pmb.create_particle(name=counter_ion_name,
-                        espresso_system=espresso_system,
+                        box_l=box_l,
                         number_of_particles=int(abs(protein_net_charge)),
                         position=counter_ion_coords)
 
@@ -232,12 +230,12 @@ if not args.ideal:
                                                                 n_samples=N_ions*2)
     ## Create cations
     pmb.create_particle(name=cation_name,
-                        espresso_system=espresso_system,
+                        box_l=box_l,
                         number_of_particles=N_ions,
                         position=added_salt_ions_coords[:N_ions])
     ## Create anions
     pmb.create_particle(name=anion_name,
-                        espresso_system=espresso_system,
+                        box_l=box_l,
                         number_of_particles=N_ions,
                         position=added_salt_ions_coords[N_ions:])
 
@@ -282,15 +280,14 @@ with open(frames_path / f"trajectory{n_frame}.vtf", mode='w+t') as coordinates:
 # Setup the potential energy
 
 if WCA:
-    pmb.setup_lj_interactions(espresso_system=espresso_system)
-    relax_espresso_system(espresso_system=espresso_system,
+    pmb.setup_lj_interactions()
+    relax_espresso_system(
                           seed=langevin_seed)
     if Electrostatics:
         setup_electrostatic_interactions(units=pmb.units,
-                                        espresso_system=espresso_system,
                                         kT=pmb.kT)
         
-setup_langevin_dynamics(espresso_system=espresso_system, 
+setup_langevin_dynamics(
                         kT = pmb.kT, 
                         seed = langevin_seed)
 
@@ -319,7 +316,7 @@ for amino in list_ionisable_groups:
 for step in tqdm.trange(N_samples, disable=not verbose):
     espresso_system.integrator.run (steps = integ_steps)
     do_reaction(cpH, steps=total_ionisable_groups)
-    protein_net_charge = pmb.calculate_net_charge(espresso_system=espresso_system,
+    protein_net_charge = pmb.calculate_net_charge(
                                                 object_name=protein_name,
                                                 pmb_type="protein",
                                                 dimensionless=True)["mean"]
@@ -329,7 +326,7 @@ for step in tqdm.trange(N_samples, disable=not verbose):
     charge_residues_per_type = {}
     for label in AA_label_list:
         charge_residues_per_type[label]=[]
-        charge_res=pmb.calculate_net_charge (espresso_system=espresso_system, 
+        charge_res=pmb.calculate_net_charge (
                                             object_name=label,
                                             pmb_type="residue",
                                             dimensionless=True)["mean"]

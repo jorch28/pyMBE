@@ -203,25 +203,24 @@ if not ideal:
     ##Setup the potential energy
     if verbose:
         print('Setup LJ interaction (this can take a few seconds)')
-    pmb.setup_lj_interactions (espresso_system=espresso_system)
+    pmb.setup_lj_interactions()
     if verbose:
         print('Minimize energy before adding electrostatics')
-    relax_espresso_system(espresso_system=espresso_system,
+    pmb.simulation_engine.relax_espresso_system(
                           seed=langevin_seed)
     if verbose:
         print('Setup and tune electrostatics (this can take a few seconds)')
-    setup_electrostatic_interactions(units=pmb.units,
-                                    espresso_system=espresso_system,
+    pmb.simulation_engine.setup_electrostatic_interactions(units=pmb.units,
                                     kT=pmb.kT,
                                     verbose=verbose)
     if verbose:
         print('Minimize energy after adding electrostatics')
-    relax_espresso_system(espresso_system=espresso_system,
+    pmb.simulation_engine.relax_espresso_system(
                           seed=langevin_seed)
 
 if verbose:
     print('Setup Langevin dynamics')
-setup_langevin_dynamics(espresso_system=espresso_system, 
+pmb.simulation_engine.setup_langevin_dynamics(
                         kT = pmb.kT, 
                         seed = langevin_seed,
                         time_step=dt,
@@ -244,7 +243,7 @@ for sample in tqdm.trange(N_samples):
     # LD sampling of the configuration space
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
     # cpH sampling of the reaction space
-    do_reaction(cpH, steps=total_ionisable_groups) # rule of thumb: one reaction step per titratable group (on average)
+    pmb.simulation_engine.do_reaction(cpH, steps=total_ionisable_groups) # rule of thumb: one reaction step per titratable group (on average)
     # Get peptide net charge
     charge_dict=pmb.calculate_net_charge(
                                         object_name=peptide_name,
