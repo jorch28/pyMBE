@@ -40,7 +40,7 @@ pmb = pyMBE.pymbe_library(seed=seed)
 pmb.set_simulation_engine(espresso_system)
 kT = pmb.kT
 
-langevin_inputs={"espresso_system":espresso_system, 
+langevin_inputs={
                 "kT" : kT, 
                 "seed" : seed,
                 "time_step" : 1e-2, 
@@ -52,7 +52,7 @@ langevin_inputs={"espresso_system":espresso_system,
                 "int_steps": 200,
                 "adjust_max_skin": True}
 
-relax_inputs={"espresso_system":espresso_system, 
+relax_inputs={
               "gamma":0.01,
               "Nsteps_steepest_descent":5000, 
               "max_displacement":0.1, 
@@ -60,7 +60,6 @@ relax_inputs={"espresso_system":espresso_system,
               "seed": seed}
 
 electrostatics_inputs={"units": pmb.units, 
-                       "espresso_system": espresso_system, 
                        "kT": pmb.kT, 
                        "c_salt": None, 
                        "solvent_permittivity":78.5, 
