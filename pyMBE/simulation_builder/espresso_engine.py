@@ -330,7 +330,7 @@ class EspressoSimulation(SimulationEngine):
             pid = self.espresso_system.part.by_id(particle_id)
             pid.vs_auto_relate_to(rigid_object_center.id)
 
-    def get_number_of_particles(self,espresso_system, ptype):
+    def get_number_of_particles(self, ptype):
         """
         Returns the number of particles of a given ESPResSo particle type.
 
@@ -359,9 +359,9 @@ class EspressoSimulation(SimulationEngine):
         else:
             args = ()
             kwargs = {"type": ptype}
-        return espresso_system.number_of_particles(*args, **kwargs)
+        return self.espresso_system.number_of_particles(*args, **kwargs)
     
-    def relax_espresso_system(self,espresso_system, seed, gamma=1e-3, Nsteps_steepest_descent=5000, max_displacement=0.01, Nsteps_iter_relax=500):
+    def relax_espresso_system(self, seed, gamma=1e-3, Nsteps_steepest_descent=5000, max_displacement=0.01, Nsteps_iter_relax=500):
         """
         Relaxes the energy of the given ESPResSo system by performing the following steps:
         (1) Steepest descent energy minimization, to remove large forces and relax the system to a local minimum.
@@ -408,23 +408,23 @@ class EspressoSimulation(SimulationEngine):
             raise ValueError("'max_displacement' must be positive.")
         logging.debug("*** Relaxing the energy of the system... ***")
         logging.debug("*** Starting steepest descent minimization ***")
-        espresso_system.thermostat.turn_off()
-        espresso_system.integrator.set_steepest_descent(f_max=0,
+        self.espresso_system.thermostat.turn_off()
+        self.espresso_system.integrator.set_steepest_descent(f_max=0,
                                                         gamma=gamma, 
                                                         max_displacement=max_displacement)
-        espresso_system.integrator.run(Nsteps_steepest_descent)
+        self.espresso_system.integrator.run(Nsteps_steepest_descent)
         logging.debug("*** Finished steepest descent minimization ***")
         logging.debug("*** Starting Langevin Dynamics relaxation ***")
-        espresso_system.integrator.set_vv()
-        espresso_system.thermostat.set_langevin(kT=1., gamma=gamma, seed=seed)
-        espresso_system.integrator.run(Nsteps_iter_relax)
-        espresso_system.thermostat.turn_off()
+        self.espresso_system.integrator.set_vv()
+        self.espresso_system.thermostat.set_langevin(kT=1., gamma=gamma, seed=seed)
+        self.espresso_system.integrator.run(Nsteps_iter_relax)
+        self.espresso_system.thermostat.turn_off()
         logging.debug("*** Finished Langevin Dynamics relaxation ***")
-        logging.info(f"*** Minimum particle distance after relaxation: {espresso_system.analysis.min_dist()} ***")
+        logging.info(f"*** Minimum particle distance after relaxation: {self.espresso_system.analysis.min_dist()} ***")
         logging.debug("*** Relaxation finished ***")
-        return espresso_system.analysis.min_dist()
+        return self.espresso_system.analysis.min_dist()
     
-    def setup_electrostatic_interactions(self,units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3, params=None, verbose=False):
+    def setup_electrostatic_interactions(self,units, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3, params=None, verbose=False):
         """
         Sets up electrostatic interactions in an ESPResSo system.
 
@@ -503,20 +503,20 @@ class EspressoSimulation(SimulationEngine):
                                                     **params)
 
             if tune_p3m:
-                espresso_system.time_step=0.01
+                self.espresso_system.time_step=0.01
                 if espressomd.version.friendly() == "4.2":
-                    espresso_system.actors.add(coulomb)
+                    self.espresso_system.actors.add(coulomb)
                 else:
-                    espresso_system.electrostatics.solver = coulomb
+                    self.espresso_system.electrostatics.solver = coulomb
 
 
                 # save the optimal parameters and add them by hand
 
                 p3m_params = coulomb.get_params()
                 if espressomd.version.friendly() == "4.2":
-                    espresso_system.actors.remove(coulomb)
+                    self.espresso_system.actors.remove(coulomb)
                 else:
-                    espresso_system.electrostatics.solver = None
+                    self.espresso_system.electrostatics.solver = None
                 coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"),
                                                         accuracy = accuracy,
                                                         mesh = p3m_params['mesh'],
@@ -536,9 +536,9 @@ class EspressoSimulation(SimulationEngine):
                                                 kappa = (1./KAPPA).to('1/ reduced_length').magnitude, 
                                                 r_cut = r_cut)
         if espressomd.version.friendly() == "4.2":
-            espresso_system.actors.add(coulomb)
+            self.espresso_system.actors.add(coulomb)
         else:
-            espresso_system.electrostatics.solver = coulomb
+            self.espresso_system.electrostatics.solver = coulomb
         logging.debug("*** Electrostatics successfully added to the system ***")
 
     def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, use_exclusion_radius_per_type = False):
@@ -1136,7 +1136,7 @@ class EspressoSimulation(SimulationEngine):
             self.db._register_reaction(rx_tpl)
         return RE, ionic_strength_res
     
-    def setup_langevin_dynamics(self,espresso_system, kT, seed,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
+    def setup_langevin_dynamics(self, kT, seed,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
         """
         Sets up Langevin Dynamics for an ESPResSo simulation system.
 
@@ -1181,23 +1181,23 @@ class EspressoSimulation(SimulationEngine):
         if not isinstance(gamma, (float, int)) or gamma <= 0:
             raise ValueError("gamma must be a positive number.")
         if max_skin is None:
-            max_skin=espresso_system.box_l[0]/2
+            max_skin=self.espresso_system.box_l[0]/2
         if min_skin >= max_skin:
             raise ValueError("min_skin must be smaller than max_skin.")
-        espresso_system.time_step=time_step
-        espresso_system.integrator.set_vv()
-        espresso_system.thermostat.set_langevin(kT= kT.to('reduced_energy').magnitude, 
+        self.espresso_system.time_step=time_step
+        self.espresso_system.integrator.set_vv()
+        self.espresso_system.thermostat.set_langevin(kT= kT.to('reduced_energy').magnitude, 
                                                 gamma= gamma, 
                                                 seed= seed)
         # Optimize the value of skin
         if tune_skin:
             logging.debug("*** Optimizing skin ... ***")
-            espresso_system.cell_system.tune_skin(min_skin=min_skin, 
+            self.espresso_system.cell_system.tune_skin(min_skin=min_skin, 
                                                 max_skin=max_skin, 
                                                 tol=tolerance, 
                                                 int_steps=int_steps, 
                                                 adjust_max_skin=adjust_max_skin)
-            logging.info(f"Optimized skin value: {espresso_system.cell_system.skin}")
+            logging.info(f"Optimized skin value: {self.espresso_system.cell_system.skin}")
 
     def setup_lj_interactions(self, shift_potential=True, combining_rule='Lorentz-Berthelot'):
         """
