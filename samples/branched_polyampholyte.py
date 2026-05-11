@@ -32,6 +32,7 @@ from pyMBE.lib.handy_functions import setup_electrostatic_interactions
 from pyMBE.lib.handy_functions import do_reaction
 from pyMBE.lib.analysis import built_output_name
 
+
 # Create an instance of pyMBE library
 
 pmb = pyMBE.pymbe_library(seed=42)
@@ -175,6 +176,8 @@ if verbose:
     print(f"The box length of your system is {L.to('reduced_length')}, {L.to('nm')}")
     print(f"The polyampholyte concentration in your system is {calculated_polyampholyte_concentration.to('mol/L')} with {N_polyampholyte_chains} molecules")
 
+pmb.set_simulation_engine(espresso_system)
+
 cpH = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
 if verbose:
     print("The acid-base reaction has been successfully set up for:")
@@ -191,32 +194,31 @@ cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print(f"The non interacting type is set to {non_interacting_type}")
     
-pmb.set_simulation_engine(espresso_system)
+
 pmb.add_instances_to_engine()
 
 if not ideal:
     ##Setup the potential energy
     if verbose:
         print('Setup LJ interaction (this can take a few seconds)')
-    pmb.setup_lj_interactions (espresso_system=espresso_system)
+    pmb.setup_lj_interactions()
     if verbose:
         print('Minimize energy before adding electrostatics')
-    relax_espresso_system(espresso_system=espresso_system,
+    pmb.simulation_engine.relax_espresso_system(
                           seed=langevin_seed)
 
     if verbose:
         print('Setup and tune electrostatics (this can take a few seconds)')
-    setup_electrostatic_interactions(units=pmb.units,
-                                    espresso_system=espresso_system,
+    pmb.simulation_engine.setup_electrostatic_interactions(units=pmb.units,
                                     kT=pmb.kT)
     if verbose:
         print('Minimize energy after adding electrostatics')
-    relax_espresso_system(espresso_system=espresso_system,
+    pmb.simulation_engine.relax_espresso_system(
                           seed=langevin_seed)
 
 
 #Setup Langevin
-setup_langevin_dynamics(espresso_system=espresso_system, 
+pmb.simulation_engine.setup_langevin_dynamics(
                         kT = pmb.kT, 
                         seed = langevin_seed,
                         time_step=dt,
@@ -235,9 +237,9 @@ for label in ["time","charge"]:
 N_frame=0
 for step in tqdm.trange(N_samples):
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
-    do_reaction(cpH, steps=total_ionisable_groups)   
+    pmb.simulation_engine.do_reaction(cpH, steps=total_ionisable_groups)   
     # Get polyampholyte net charge
-    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
+    charge_dict=pmb.calculate_net_charge(
                                         object_name="polyampholyte",
                                         pmb_type="molecule",
                                         dimensionless=True)
