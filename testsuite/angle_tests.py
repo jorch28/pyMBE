@@ -23,7 +23,8 @@ import unittest as ut
 import espressomd
 
 # Create an instance of the ESPResSo system
-espresso_system = espressomd.System(box_l=[10]*3)
+box_l=[10]*3
+espresso_system = espressomd.System(box_l=box_l)
 
 
 class Test(ut.TestCase):
@@ -125,29 +126,28 @@ class Test(ut.TestCase):
 
         # Create three particles: A, B, C
         pid_A = pmb.create_particle(name="A",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_C = pmb.create_particle(name="C",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
 
         # Create bonds: A-B and B-C
         pmb.create_bond(particle_id1=pid_A[0],
-                        particle_id2=pid_B[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_B[0])
         pmb.create_bond(particle_id1=pid_B[0],
-                        particle_id2=pid_C[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_C[0])
 
         # Create the angle: A-B-C (B is central)
+        
         pmb.create_angular_potential(particle_id1=pid_A[0],
                          particle_id2=pid_B[0],
-                         particle_id3=pid_C[0],
-                         espresso_system=espresso_system)
-
+                         particle_id3=pid_C[0])
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
         angle_object = self.get_angle_object(central_particle_id=pid_B[0])
         self.assertIsNotNone(angle_object, "No angle object found on the central particle")
 
@@ -158,8 +158,7 @@ class Test(ut.TestCase):
         # Clean-up
         for inst_id in pid_A + pid_B + pid_C:
             pmb.delete_instances_in_system(instance_id=inst_id,
-                                           pmb_type="particle",
-                                           espresso_system=espresso_system)
+                                           pmb_type="particle")
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
@@ -182,27 +181,29 @@ class Test(ut.TestCase):
 
         # Create three particles
         pid_A1 = pmb.create_particle(name="A",
-                                     espresso_system=espresso_system,
+                                     box_l=box_l,
                                      number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_A2 = pmb.create_particle(name="A",
-                                     espresso_system=espresso_system,
+                                     box_l=box_l,
                                      number_of_particles=1)
 
         # Create bonds: A1-B and B-A2
         pmb.create_bond(particle_id1=pid_A1[0],
                         particle_id2=pid_B[0],
-                        espresso_system=espresso_system)
+                       )
         pmb.create_bond(particle_id1=pid_B[0],
                         particle_id2=pid_A2[0],
-                        espresso_system=espresso_system)
+                        )
 
         pmb.create_angular_potential(particle_id1=pid_A1[0],
                          particle_id2=pid_B[0],
                          particle_id3=pid_A2[0],
-                         espresso_system=espresso_system)
+                         )
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
 
         angle_object = self.get_angle_object(central_particle_id=pid_B[0])
         self.assertIsNotNone(angle_object, "No angle object found on the central particle")
@@ -214,8 +215,7 @@ class Test(ut.TestCase):
         # Clean-up
         for inst_id in pid_A1 + pid_B + pid_A2:
             pmb.delete_instances_in_system(instance_id=inst_id,
-                                           pmb_type="particle",
-                                           espresso_system=espresso_system)
+                                           pmb_type="particle")
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
@@ -235,27 +235,25 @@ class Test(ut.TestCase):
                          particle_triplets=[('A', 'B', 'C')])
 
         pid_A = pmb.create_particle(name="A",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_C = pmb.create_particle(name="C",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
 
         pmb.create_bond(particle_id1=pid_A[0],
-                        particle_id2=pid_B[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_B[0])
         pmb.create_bond(particle_id1=pid_B[0],
-                        particle_id2=pid_C[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_C[0])
 
         pmb.create_angular_potential(particle_id1=pid_A[0],
                          particle_id2=pid_B[0],
-                         particle_id3=pid_C[0],
-                         espresso_system=espresso_system)
-
+                         particle_id3=pid_C[0])
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
         angle_object = self.get_angle_object(central_particle_id=pid_B[0])
         self.assertIsNotNone(angle_object, "No angle object found on the central particle")
 
@@ -265,8 +263,7 @@ class Test(ut.TestCase):
 
         for inst_id in pid_A + pid_B + pid_C:
             pmb.delete_instances_in_system(instance_id=inst_id,
-                                           pmb_type="particle",
-                                           espresso_system=espresso_system)
+                                           pmb_type="particle")
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
@@ -313,30 +310,28 @@ class Test(ut.TestCase):
 
         # Create three particles
         pid_A = pmb.create_particle(name="A",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_C = pmb.create_particle(name="C",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
 
         # Create bonds: A-B and B-C
         pmb.create_bond(particle_id1=pid_A[0],
-                        particle_id2=pid_B[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_B[0])
         pmb.create_bond(particle_id1=pid_B[0],
-                        particle_id2=pid_C[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_C[0])
 
         # Create angle using default (no specific A-B-C template exists)
         pmb.create_angular_potential(particle_id1=pid_A[0],
                          particle_id2=pid_B[0],
                          particle_id3=pid_C[0],
-                         espresso_system=espresso_system,
                          use_default_angle=True)
-
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
         angle_object = self.get_angle_object(central_particle_id=pid_B[0])
         self.assertIsNotNone(angle_object, "No angle object found on the central particle")
 
@@ -347,8 +342,7 @@ class Test(ut.TestCase):
         # Clean-up
         for inst_id in pid_A + pid_B + pid_C:
             pmb.delete_instances_in_system(instance_id=inst_id,
-                                           pmb_type="particle",
-                                           espresso_system=espresso_system)
+                                           pmb_type="particle")
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
@@ -374,30 +368,28 @@ class Test(ut.TestCase):
                          particle_triplets=[('A', 'B', 'C')])
 
         pid_A = pmb.create_particle(name="A",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_C = pmb.create_particle(name="C",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
 
         # Create bonds: A-B and B-C
         pmb.create_bond(particle_id1=pid_A[0],
-                        particle_id2=pid_B[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_B[0])
         pmb.create_bond(particle_id1=pid_B[0],
-                        particle_id2=pid_C[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_C[0])
 
         # Should use the specific A-B-C template, not the default
         pmb.create_angular_potential(particle_id1=pid_A[0],
                          particle_id2=pid_B[0],
                          particle_id3=pid_C[0],
-                         espresso_system=espresso_system,
                          use_default_angle=True)
-
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
         angle_object = self.get_angle_object(central_particle_id=pid_B[0])
         self.assertIsNotNone(angle_object)
 
@@ -409,8 +401,7 @@ class Test(ut.TestCase):
         # Clean-up
         for inst_id in pid_A + pid_B + pid_C:
             pmb.delete_instances_in_system(instance_id=inst_id,
-                                           pmb_type="particle",
-                                           espresso_system=espresso_system)
+                                           pmb_type="particle")
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
@@ -519,27 +510,26 @@ class Test(ut.TestCase):
 
         # Create three particles without any bonds between them
         pid_A = pmb.create_particle(name="A",
-                                    espresso_system=espresso_system,
+                                     box_l=box_l,
                                     number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_C = pmb.create_particle(name="C",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
-
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
         # Attempting to create angle without bonds should raise ValueError
         with self.assertRaises(ValueError, msg="create_angular_potential should raise ValueError when no bonds exist"):
             pmb.create_angular_potential(particle_id1=pid_A[0],
                              particle_id2=pid_B[0],
-                             particle_id3=pid_C[0],
-                             espresso_system=espresso_system)
+                             particle_id3=pid_C[0])
 
         # Clean-up
         for inst_id in pid_A + pid_B + pid_C:
             pmb.delete_instances_in_system(instance_id=inst_id,
-                                           pmb_type="particle",
-                                           espresso_system=espresso_system)
+                                           pmb_type="particle")
         pmb.db.delete_templates(pmb_type="angle")
 
     def test_angle_with_partial_bonds_raises_error(self):
@@ -559,32 +549,30 @@ class Test(ut.TestCase):
                          particle_triplets=[('A', 'B', 'C')])
 
         pid_A = pmb.create_particle(name="A",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_C = pmb.create_particle(name="C",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
 
         # Create only the A-B bond, not B-C
         pmb.create_bond(particle_id1=pid_A[0],
-                        particle_id2=pid_B[0],
-                        espresso_system=espresso_system)
-
+                        particle_id2=pid_B[0])
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
         # Should raise ValueError because B-C bond is missing
         with self.assertRaises(ValueError, msg="create_angular_potential should raise ValueError when a bond is missing"):
             pmb.create_angular_potential(particle_id1=pid_A[0],
                              particle_id2=pid_B[0],
-                             particle_id3=pid_C[0],
-                             espresso_system=espresso_system)
+                             particle_id3=pid_C[0])
 
         # Clean-up
         for inst_id in pid_A + pid_B + pid_C:
             pmb.delete_instances_in_system(instance_id=inst_id,
-                                           pmb_type="particle",
-                                           espresso_system=espresso_system)
+                                           pmb_type="particle")
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
@@ -595,7 +583,7 @@ class Test(ut.TestCase):
         pmb = pyMBE.pymbe_library(seed=42)
         self.define_templates(pmb)
 
-        pmb._generate_angles_for_entity(espresso_system=espresso_system,
+        pmb._generate_angles_for_entity(
                                         entity_id=999,
                                         entity_id_col="residue_id")
 
@@ -616,15 +604,15 @@ class Test(ut.TestCase):
                          particle_triplets=[('A', 'B', 'C')])
 
         pid_A = pmb.create_particle(name="A",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
-                                    espresso_system=espresso_system,
+                                     box_l=box_l,
                                     number_of_particles=1)
         pid_C = pmb.create_particle(name="C",
-                                    espresso_system=espresso_system,
+                                   box_l=box_l,
                                     number_of_particles=1)
-
+        
         for particle_id in (pid_A[0], pid_B[0], pid_C[0]):
             pmb.db._update_instance(instance_id=particle_id,
                                     pmb_type="particle",
@@ -632,24 +620,23 @@ class Test(ut.TestCase):
                                     value=0)
 
         pmb.create_bond(particle_id1=pid_A[0],
-                        particle_id2=pid_B[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_B[0])
         pmb.create_bond(particle_id1=pid_B[0],
-                        particle_id2=pid_C[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_C[0])
+        
 
-        pmb._generate_angles_for_entity(espresso_system=espresso_system,
+        pmb._generate_angles_for_entity(
                                         entity_id=0,
                                         entity_id_col="residue_id")
-
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
         angle_object = self.get_angle_object(central_particle_id=pid_B[0])
         self.assertIsNotNone(angle_object, "No angle object found on the central particle")
         self.assertEqual(len(pmb.get_instances_df(pmb_type="angle")), 1)
 
         for inst_id in pid_A + pid_B + pid_C:
             pmb.delete_instances_in_system(instance_id=inst_id,
-                                           pmb_type="particle",
-                                           espresso_system=espresso_system)
+                                           pmb_type="particle")
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
@@ -665,15 +652,15 @@ class Test(ut.TestCase):
                         particle_pairs=[['A', 'B'], ['B', 'C']])
 
         pid_A = pmb.create_particle(name="A",
-                                    espresso_system=espresso_system,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
-                                    espresso_system=espresso_system,
+                                     box_l=box_l,
                                     number_of_particles=1)
         pid_C = pmb.create_particle(name="C",
-                                    espresso_system=espresso_system,
+                                     box_l=box_l,
                                     number_of_particles=1)
-
+       
         for particle_id in (pid_A[0], pid_B[0], pid_C[0]):
             pmb.db._update_instance(instance_id=particle_id,
                                     pmb_type="particle",
@@ -681,13 +668,12 @@ class Test(ut.TestCase):
                                     value=0)
 
         pmb.create_bond(particle_id1=pid_A[0],
-                        particle_id2=pid_B[0],
-                        espresso_system=espresso_system)
+                        particle_id2=pid_B[0])
         pmb.create_bond(particle_id1=pid_B[0],
-                        particle_id2=pid_C[0],
-                        espresso_system=espresso_system)
-
-        pmb._generate_angles_for_entity(espresso_system=espresso_system,
+                        particle_id2=pid_C[0])
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
+        pmb._generate_angles_for_entity(
                                         entity_id=0,
                                         entity_id_col="residue_id")
 
@@ -696,8 +682,7 @@ class Test(ut.TestCase):
 
         for inst_id in pid_A + pid_B + pid_C:
             pmb.delete_instances_in_system(instance_id=inst_id,
-                                           pmb_type="particle",
-                                           espresso_system=espresso_system)
+                                           pmb_type="particle")
         pmb.db.delete_templates(pmb_type="bond")
 
     def test_create_residue_with_gen_angle_generates_angles(self):
@@ -718,9 +703,10 @@ class Test(ut.TestCase):
                            side_chains=["A", "C"])
 
         residue_id = pmb.create_residue(name="R_angle",
-                                        espresso_system=espresso_system,
+                                        box_l=box_l,
                                         gen_angle=True)
-
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
         particle_ids = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                               attribute="residue_id",
                                                               value=residue_id)
@@ -733,8 +719,7 @@ class Test(ut.TestCase):
         self.assertEqual(len(pmb.get_instances_df(pmb_type="angle")), 1)
 
         pmb.delete_instances_in_system(instance_id=residue_id,
-                                       pmb_type="residue",
-                                       espresso_system=espresso_system)
+                                       pmb_type="residue")
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
@@ -765,9 +750,10 @@ class Test(ut.TestCase):
 
         molecule_ids = pmb.create_molecule(name="M_angle",
                                            number_of_molecules=1,
-                                           espresso_system=espresso_system,
+                                            box_l=box_l,
                                            gen_angle=True)
-
+        pmb.set_simulation_engine(espresso_system)
+        pmb.add_instances_to_engine()
         particle_ids = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                               attribute="molecule_id",
                                                               value=molecule_ids[0])
@@ -780,8 +766,7 @@ class Test(ut.TestCase):
         self.assertEqual(len(pmb.get_instances_df(pmb_type="angle")), 1)
 
         pmb.delete_instances_in_system(instance_id=molecule_ids[0],
-                                       pmb_type="molecule",
-                                       espresso_system=espresso_system)
+                                       pmb_type="molecule")
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
