@@ -26,7 +26,19 @@ class EspressoSimulation(SimulationEngine):
         self.Kw=Kw
         self.seed=seed
         pass
-    
+
+    def _add_angle(self,particle_id1,particle_id2,particle_id3, angle_inst):
+
+        angle_tpl=self.db.get_template(name=angle_inst.name, 
+                                        pmb_type="angle")
+        espresso_angle_inst=self._get_angle_instance(angle_template=angle_tpl)
+
+        self.espresso_system.part.by_id(particle_id2).add_bond((espresso_angle_inst, particle_id1, particle_id3))
+        self.db._update_instance(instance_id=angle_inst.angle_id,
+                                    pmb_type='angle',
+                                    attribute='added_to_engine',
+                                    value=True)
+        
     def _add_bond(self,particle_id1,particle_id2,bond_inst):
         bond_tpl=self.db.get_template(name=bond_inst.name, 
                                         pmb_type="bond")
@@ -169,6 +181,51 @@ class EspressoSimulation(SimulationEngine):
             self.db.espresso_bond_instances[bond_template.name]= bond_inst
             self.espresso_system.bonded_inter.add(bond_inst)
         return bond_inst
+    
+    def _get_angle_instance(self,angle_template):
+        """
+        Retrieve or create an angle interaction in an ESPResSo system for a given angle template.
+
+        Args:
+            angle_template ('AngleTemplate'): The angle template to use.
+            espresso_system ('espressomd.system.System'): ESPResSo system.
+
+        Returns:
+            ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
+        """
+        if angle_template.name in self.db.espresso_angle_instances:
+                return self.db.espresso_angle_instances[angle_template.name]
+    
+        angle_inst = self._create_angle_instance(angle_type=angle_template.angle_type,
+                                                    angle_parameters=angle_template.get_parameters(self.units))
+        self.db.espresso_angle_instances[angle_template.name] = angle_inst
+        self.espresso_system.bonded_inter.add(angle_inst)
+    
+        return angle_inst 
+    
+    def _create_angle_instance(self, angle_type, angle_parameters):
+        """
+        Creates an ESPResSo angle interaction object.
+
+        Args:
+            angle_type ('str'): Type of angle potential ("harmonic", "cosine", "harmonic_cosine").
+            angle_parameters ('dict'): Parameters of the angle potential (k, phi_0).
+
+        Returns:
+            ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
+        """
+        from espressomd import interactions
+
+        k = angle_parameters["k"].m_as("reduced_energy")
+        phi_0 = float(angle_parameters["phi_0"].magnitude)
+
+        if angle_type == "harmonic":
+            return interactions.AngleHarmonic(bend=k, phi0=phi_0)
+        elif angle_type == "cosine":
+            return interactions.AngleCosine(bend=k, phi0=phi_0)
+        elif angle_type == "harmonic_cosine":
+            return interactions.AngleCossquare(bend=k, phi0=phi_0)
+
     
     def _get_particle_ids_in_espresso(self):
         espresso_particles=self.espresso_system.part.all()
@@ -1350,6 +1407,21 @@ class EspressoSimulation(SimulationEngine):
                 self._add_bond(particle_id1,
                                particle_id2,
                                bond_instance)
+                
+        missing_angle_ids=self.db._find_instance_ids_by_attribute(pmb_type='angle', 
+                                                                 attribute='added_to_engine', 
+                                                                 value=False)
+        if len(missing_angle_ids)>0:
+            for id in missing_angle_ids:
+                angle_instance=self.db.get_instance(pmb_type='angle',
+                                                   instance_id=id)
+                particle_id1=angle_instance.particle_id1
+                particle_id2=angle_instance.particle_id2
+                particle_id3=angle_instance.particle_id3
+                self._add_angle(particle_id1,
+                               particle_id2,
+                               particle_id3,
+                               angle_instance)
        
         return 
     
