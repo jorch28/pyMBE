@@ -94,12 +94,13 @@ volume = N_SALT_ION_PAIRS/(pmb.N_A*c_salt_res)
 L = volume ** (1./3.) # Side of the simulation box
 
 # Create an instance of an espresso system
-espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
+box_l= [L.to('reduced_length').magnitude]*3
+espresso_system=espressomd.System (box_l =box_l)
 if verbose:
     print("Created espresso object")
 
 # Add salt
-c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
+c_salt_calculated = pmb.create_added_salt(box_l=box_l,
                                           cation_name=cation_name,
                                           anion_name=anion_name,
                                           c_salt=0.5*c_salt_res)
@@ -145,9 +146,9 @@ if args.mode == "interacting":
     pmb.setup_lj_interactions(espresso_system=espresso_system)
 
 # Minimzation
-relax_espresso_system(espresso_system=espresso_system,
+pmb.simulation_engine.relax_espresso_system(
                       seed=langevin_seed)
-setup_langevin_dynamics(espresso_system=espresso_system, 
+pmb.simulation_engine.setup_langevin_dynamics(
                         kT = pmb.kT, 
                         seed = langevin_seed,
                         time_step=dt,
@@ -157,18 +158,17 @@ if verbose:
     print("Running warmup without electrostatics")
 for i in tqdm.trange(100, disable=not verbose):
     espresso_system.integrator.run(steps=100)
-    do_reaction(RE, steps=100)
+    pmb.simulation_engine.do_reaction(RE, steps=100)
 
 if args.mode == "interacting":
-    setup_electrostatic_interactions(units=pmb.units,
-                                    espresso_system=espresso_system,
+    pmb.simulation_engine.setup_electrostatic_interactions(units=pmb.units,
                                     kT=pmb.kT,
                                     solvent_permittivity=solvent_permittivity)
 
 espresso_system.thermostat.turn_off()
-relax_espresso_system(espresso_system=espresso_system,
+pmb.simulation_engine.relax_espresso_system(
                       seed=langevin_seed)
-setup_langevin_dynamics(espresso_system=espresso_system, 
+pmb.simulation_engine.setup_langevin_dynamics(
                         kT = pmb.kT, 
                         seed = langevin_seed,
                         time_step=dt,
@@ -180,7 +180,7 @@ if verbose:
 N_warmup_loops = 100
 for i in tqdm.trange(N_warmup_loops, disable=not verbose):
     espresso_system.integrator.run(steps=100)
-    do_reaction(RE, steps=100)
+    pmb.simulation_engine.do_reaction(RE, steps=100)
 
 # Main loop
 print("Started production run.")
@@ -194,7 +194,7 @@ for label in labels_obs:
 N_production_loops = 100
 for i in tqdm.trange(N_production_loops, disable=not verbose):
     espresso_system.integrator.run(steps=100)
-    do_reaction(RE, steps=100)
+    pmb.simulation_engine.do_reaction(RE, steps=100)
 
     # Measure time
     time_series["time"].append(espresso_system.time)
