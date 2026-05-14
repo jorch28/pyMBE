@@ -231,9 +231,9 @@ class Test(ut.TestCase):
         for label, index in lattice.node_labels.items():
             node_index = lattice.lattice.indices[index]
             node_name = lattice.get_node(label)
-            node_pos, node_id = pmb2._create_hydrogel_node(node_index=node_index,
-                                                           node_name=node_name,
-                                                           espresso_system=espresso_system)
+            node_pos, node_id = pmb2._create_hydrogel_node(box_l=box_l,
+                                                           node_index=node_index,
+                                                           node_name=node_name)
             nodes[label] = {"name": node_name,
                             "pos": node_pos,
                             "id": node_id}
@@ -284,7 +284,6 @@ class Test(ut.TestCase):
         ):
             pmb._create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
                                        nodes={},
-                                       espresso_system=espresso_system,
                                        use_default_bond=False)
 
     def test_plot(self):
