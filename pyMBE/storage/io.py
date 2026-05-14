@@ -337,7 +337,8 @@ def _load_database_csv(db, folder):
                                      angle_id=int(row["angle_id"]),
                                      particle_id1=int(row["particle_id1"]),
                                      particle_id2=int(row["particle_id2"]),
-                                     particle_id3=int(row["particle_id3"]))
+                                     particle_id3=int(row["particle_id3"]),
+                                     added_to_engine=row["added_to_engine"])
                 instances[inst.angle_id] = inst
             elif pmb_type == "hydrogel":
                 inst = HydrogelInstance(name=row["name"],
@@ -521,7 +522,8 @@ def _save_database_csv(db, folder):
                             "angle_id": int(inst.angle_id),
                             "particle_id1": int(inst.particle_id1),
                             "particle_id2": int(inst.particle_id2),
-                            "particle_id3": int(inst.particle_id3)})
+                            "particle_id3": int(inst.particle_id3),
+                            "added_to_engine":inst.added_to_engine,})
             elif pmb_type == "hydrogel" and isinstance(inst, HydrogelInstance):
                 rows.append({"pmb_type": pmb_type,
                             "name": inst.name,
