@@ -497,7 +497,7 @@ class Test(ut.TestCase):
         pmb.define_molecule(name="M1", 
                             residue_list=["R1"]*1)
         angle_residue_id = pmb.create_residue(name="R1",
-                                              espresso_system=espresso_system,
+                                              box_l=box_l,
                                               gen_angle=True)
         diamond_lattice = DiamondLattice(4, 3.5 * pmb.units.reduced_length)
         lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
@@ -556,7 +556,7 @@ class Test(ut.TestCase):
         pmb.delete_instances_in_system(
                                        instance_id=assembly_id,
                                        pmb_type="hydrogel")
-        pmb.delete_instances_in_system(espresso_system=espresso_system,
+        pmb.delete_instances_in_system(
                                        instance_id=angle_residue_id,
                                        pmb_type="residue")
         pmb.db.delete_templates(pmb_type="angle")
