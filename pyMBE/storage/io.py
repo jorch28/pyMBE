@@ -30,10 +30,12 @@ from pyMBE.storage.templates.particle import ParticleTemplate, ParticleStateTemp
 from pyMBE.storage.templates.residue import ResidueTemplate
 from pyMBE.storage.templates.molecule import MoleculeTemplate
 from pyMBE.storage.templates.bond import BondTemplate
+from pyMBE.storage.templates.angle import AngleTemplate
 from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.instances.residue import ResidueInstance
 from pyMBE.storage.instances.molecule import MoleculeInstance
 from pyMBE.storage.instances.bond import BondInstance
+from pyMBE.storage.instances.angle import AngleInstance
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 from pyMBE.storage.templates.peptide import PeptideTemplate
 from pyMBE.storage.instances.peptide import PeptideInstance
@@ -124,7 +126,7 @@ def _load_database_csv(db, folder):
 
     Notes:
         - PintQuantity objects are reconstructed from their dictionary representation.
-        - Supports particle, residue, molecule, peptide, protein, bond, and hydrogel types.
+        - Supports particle, residue, molecule, peptide, protein, bond, angle, and hydrogel types.
     """
     folder = Path(folder)
     if not folder.exists():
@@ -135,6 +137,7 @@ def _load_database_csv(db, folder):
                    "residue", 
                    "molecule", 
                    "bond", 
+                   "angle",
                    "peptide",
                    "protein",
                    "hydrogel",
@@ -218,6 +221,22 @@ def _load_database_csv(db, folder):
                                    particle_name1=None if particle_name1 == "" else particle_name1,
                                    particle_name2=None if particle_name2 == "" else particle_name2,
                                    parameters=parameters)
+                templates[tpl.name] = tpl
+            elif pmb_type == "angle":
+                params_raw = _decode(row.get("parameters", "")) or {}
+                parameters: Dict[str, Any] = {}
+                side_particle1 = row.get("side_particle1", "") or ""
+                central_particle = row.get("central_particle", "") or ""
+                side_particle2 = row.get("side_particle2", "") or ""
+                for k, v in params_raw.items():
+                    if isinstance(v, dict) and {"magnitude", "units", "dimension"}.issubset(v.keys()):
+                        parameters[k] = PintQuantity.from_dict(v)
+                tpl = AngleTemplate(name=row["name"],
+                                    angle_type=row.get("angle_type", ""),
+                                    side_particle1=None if side_particle1 == "" else side_particle1,
+                                    central_particle=None if central_particle == "" else central_particle,
+                                    side_particle2=None if side_particle2 == "" else side_particle2,
+                                    parameters=parameters)
                 templates[tpl.name] = tpl
             elif pmb_type == "hydrogel":
                 node_map_raw = _decode(row.get("node_map", "")) or []
@@ -313,6 +332,13 @@ def _load_database_csv(db, folder):
                                     particle_id1=int(row["particle_id1"]),
                                     particle_id2=int(row["particle_id2"]))
                 instances[inst.bond_id] = inst
+            elif pmb_type == "angle":
+                inst = AngleInstance(name=row["name"],
+                                     angle_id=int(row["angle_id"]),
+                                     particle_id1=int(row["particle_id1"]),
+                                     particle_id2=int(row["particle_id2"]),
+                                     particle_id3=int(row["particle_id3"]))
+                instances[inst.angle_id] = inst
             elif pmb_type == "hydrogel":
                 inst = HydrogelInstance(name=row["name"],
                                         assembly_id=int(row["assembly_id"]))
@@ -406,6 +432,17 @@ def _save_database_csv(db, folder):
                             "particle_name2": tpl.particle_name2,
                             "bond_type": tpl.bond_type,
                             "parameters": _encode(params_serial)})
+            elif pmb_type == "angle" and isinstance(tpl, AngleTemplate):
+                params_serial = {}
+                for k, v in tpl.parameters.items():
+                    if isinstance(v, PintQuantity):
+                        params_serial[k] = v.to_dict()
+                rows.append({"name": tpl.name,
+                            "side_particle1": tpl.side_particle1,
+                            "central_particle": tpl.central_particle,
+                            "side_particle2": tpl.side_particle2,
+                            "angle_type": tpl.angle_type,
+                            "parameters": _encode(params_serial)})
             # HYDROGEL TEMPLATE
             elif pmb_type == "hydrogel" and isinstance(tpl, HydrogelTemplate):
                 rows.append({"name": tpl.name,
@@ -478,6 +515,13 @@ def _save_database_csv(db, folder):
                             "added_to_engine":inst.added_to_engine,
                             "particle_id1": int(inst.particle_id1),
                             "particle_id2": int(inst.particle_id2)})
+            elif pmb_type == "angle" and isinstance(inst, AngleInstance):
+                rows.append({"pmb_type": pmb_type,
+                            "name": inst.name,
+                            "angle_id": int(inst.angle_id),
+                            "particle_id1": int(inst.particle_id1),
+                            "particle_id2": int(inst.particle_id2),
+                            "particle_id3": int(inst.particle_id3)})
             elif pmb_type == "hydrogel" and isinstance(inst, HydrogelInstance):
                 rows.append({"pmb_type": pmb_type,
                             "name": inst.name,
