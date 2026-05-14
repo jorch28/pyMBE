@@ -224,7 +224,7 @@ class pymbe_library():
         bond_instance = self.simulation_engine._create_bond_instance(bond_type,bond_parameters)
         return bond_instance
 
-    def _create_hydrogel_chain(self, hydrogel_chain, nodes, espresso_system, use_default_bond=False, gen_angle=False):
+    def _create_hydrogel_chain(self, hydrogel_chain, nodes, use_default_bond=False, gen_angle=False):
         """
         Creates a chain between two nodes of a hydrogel.
 
@@ -309,17 +309,9 @@ class pymbe_library():
         self.create_bond(particle_id1=start_node_id,particle_id2=chain_pids[0],use_default_bond=use_default_bond)
         self.create_bond(particle_id1=chain_pids[-1],particle_id2=end_node_id,use_default_bond=use_default_bond)
 
-        self.create_bond(particle_id1=start_node_id,
-                         particle_id2=chain_pids[0],
-                         espresso_system=espresso_system,
-                         use_default_bond=use_default_bond)
-        self.create_bond(particle_id1=chain_pids[-1],
-                         particle_id2=end_node_id,
-                         espresso_system=espresso_system,
-                         use_default_bond=use_default_bond)
         return mol_id
 
-    def _generate_hydrogel_crosslinker_angles(self, espresso_system, central_particle_ids):
+    def _generate_hydrogel_crosslinker_angles(self,  central_particle_ids):
         """
         Generate hydrogel angles centered on crosslinkers and adjacent terminal beads.
 
@@ -377,10 +369,8 @@ class pymbe_library():
             self.create_angular_potential(particle_id1=side_particle_id1,
                               particle_id2=central_particle_id,
                               particle_id3=side_particle_id3,
-                              espresso_system=espresso_system,
                               use_default_angle=False)
 
-    def _create_hydrogel_node(self, node_index, node_name, espresso_system):
     def _create_hydrogel_node(self, node_index, node_name,box_l):
         """
         Set a node residue type.
@@ -954,8 +944,8 @@ class pymbe_library():
             logging.info(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
 
-    def create_hydrogel(self, name, box_l,use_default_bond=False):
-    def create_hydrogel(self, name, espresso_system, use_default_bond=False, gen_angle=False):
+
+    def create_hydrogel(self, name, box_l, use_default_bond=False, gen_angle=False):
         """ 
         Creates a hydrogel in espresso_system using a pyMBE hydrogel template given by 'name'
 
@@ -1052,15 +1042,15 @@ class pymbe_library():
                                 attribute="assembly_id", 
                                 value=assembly_id)
         if gen_angle:
-            self._generate_hydrogel_crosslinker_angles(espresso_system=espresso_system,
+            self._generate_hydrogel_crosslinker_angles(
                                                        central_particle_ids=hydrogel_angle_centers)
         # Register an hydrogel instance in the pyMBE databasegit 
         self.db._register_instance(HydrogelInstance(name=name,
                                                     assembly_id=assembly_id))
         return assembly_id
 
-    def create_molecule(self, name, number_of_molecules, box_l, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False):
-    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False, gen_angle=False):
+
+    def create_molecule(self, name, number_of_molecules, box_l, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False, gen_angle=False):
         """
         Creates instances of a given molecule template name into ESPResSo.
 
@@ -1204,7 +1194,6 @@ class pymbe_library():
             self.db._register_instance(inst)
             if gen_angle:
                 self._generate_angles_for_entity(
-                    espresso_system=espresso_system,
                     entity_id=molecule_id,
                     entity_id_col='molecule_id')
             first_residue = True
@@ -1359,7 +1348,7 @@ class pymbe_library():
             mol_ids.append(molecule_id)
         return mol_ids
 
-    def create_residue(self, name, espresso_system, central_bead_position=None,use_default_bond=False, backbone_vector=None, gen_angle=False):
+    def create_residue(self, name, box_l, central_bead_position=None,use_default_bond=False, backbone_vector=None, gen_angle=False):
         """
         Creates a residue  into ESPResSo.
 
@@ -1486,10 +1475,9 @@ class pymbe_library():
                                         instance_id=side_residue_id)
                 self.create_bond(particle_id1=central_bead_id,
                                  particle_id2=side_chain_beads_ids[0],
-                                 espresso_system=espresso_system,
                                  use_default_bond=use_default_bond)
         if gen_angle:
-            self._generate_angles_for_entity(espresso_system=espresso_system,
+            self._generate_angles_for_entity(
                                              entity_id=residue_id,
                                              entity_id_col="residue_id")
         return  residue_id
@@ -1654,7 +1642,7 @@ class pymbe_library():
         tpl.name = "default"
         self.db._register_template(tpl)
 
-    def create_angular_potential(self, particle_id1, particle_id2, particle_id3, espresso_system, use_default_angle=False):
+    def create_angular_potential(self, particle_id1, particle_id2, particle_id3, use_default_angle=False):
         """
         Creates an angle between three particle instances in an ESPResSo system
         and registers it in the pyMBE database.
@@ -1685,10 +1673,10 @@ class pymbe_library():
                                             central_name=particle_inst_2.name,
                                             side_name2=particle_inst_3.name,
                                             use_default_angle=use_default_angle)
-        angle_inst = self._get_espresso_angle_instance(angle_template=angle_tpl, espresso_system=espresso_system)
+        # angle_inst = self._get_espresso_angle_instance(angle_template=angle_tpl, espresso_system=espresso_system)
 
         # ESPResSo angle bonds are added to the central particle
-        espresso_system.part.by_id(particle_id2).add_bond((angle_inst, particle_id1, particle_id3))
+        # espresso_system.part.by_id(particle_id2).add_bond((angle_inst, particle_id1, particle_id3))
 
         angle_id = self.db._propose_instance_id(pmb_type="angle")
         pmb_angle_instance = AngleInstance(angle_id=angle_id,
@@ -1752,19 +1740,9 @@ class pymbe_library():
         Returns:
             ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
         """
-        from espressomd import interactions
+        self.simulation_engine._create_angle_instance(angle_type, angle_parameters)
 
-        k = angle_parameters["k"].m_as("reduced_energy")
-        phi_0 = float(angle_parameters["phi_0"].magnitude)
-
-        if angle_type == "harmonic":
-            return interactions.AngleHarmonic(bend=k, phi0=phi_0)
-        elif angle_type == "cosine":
-            return interactions.AngleCosine(bend=k, phi0=phi_0)
-        elif angle_type == "harmonic_cosine":
-            return interactions.AngleCossquare(bend=k, phi0=phi_0)
-
-    def _generate_angles_for_entity(self, espresso_system, entity_id, entity_id_col):
+    def _generate_angles_for_entity(self, entity_id, entity_id_col):
         """
         Auto-generates angles from bond topology for an entity (molecule or residue).
 
@@ -1807,7 +1785,6 @@ class pymbe_library():
                         self.create_angular_potential(particle_id1=i,
                                           particle_id2=j,
                                           particle_id3=k,
-                                          espresso_system=espresso_system,
                                           use_default_angle=True)
                     except ValueError:
                         # No angle template defined for this triplet — skip
