@@ -572,6 +572,8 @@ class Manager:
             allowed = ["assembly_id"]
         elif pmb_type =="bond":
             allowed = ["particle_id1","particle_id2","added_to_engine"]
+        elif pmb_type =="angle":
+            allowed = ["particle_id1","particle_id2","particle_id3","added_to_engine"]
         else:
             allowed = [None]  # No attributes allowed for other types        
         if attribute not in allowed:
