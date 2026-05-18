@@ -240,15 +240,14 @@ for i in tqdm.trange(100, disable=not verbose):
     do_reaction(grxmc, steps=1000)
 
 pmb.simulation_engine.setup_electrostatic_interactions(units=pmb.units,
-                                espresso_system=espresso_system,
                                 kT=pmb.kT,
                                 solvent_permittivity=solvent_permittivity,
                                 verbose=verbose)
 espresso_system.thermostat.turn_off()
-pmb.simulation_engine.relax_espresso_system(espresso_system=espresso_system,
+pmb.simulation_engine.relax_espresso_system(
                       seed=langevin_seed,
                       max_displacement=0.01)
-pmb.simulation_engine.setup_langevin_dynamics(espresso_system=espresso_system, 
+pmb.simulation_engine.setup_langevin_dynamics(
                         kT = pmb.kT, 
                         seed = langevin_seed,
                         time_step=dt,

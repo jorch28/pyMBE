@@ -29,11 +29,8 @@ import tqdm
 import pyMBE
 from pyMBE.lib import analysis
 #Import functions from handy_functions script 
-from pyMBE.lib.handy_functions import relax_espresso_system
-from pyMBE.lib.handy_functions import setup_electrostatic_interactions
-from pyMBE.lib.handy_functions import setup_langevin_dynamics
+
 from pyMBE.lib.handy_functions import get_number_of_particles
-from pyMBE.lib.handy_functions import do_reaction
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -96,6 +93,8 @@ L = volume ** (1./3.) # Side of the simulation box
 # Create an instance of an espresso system
 box_l= [L.to('reduced_length').magnitude]*3
 espresso_system=espressomd.System (box_l =box_l)
+pmb.set_simulation_engine(espresso_system)
+
 if verbose:
     print("Created espresso object")
 
@@ -103,7 +102,10 @@ if verbose:
 c_salt_calculated = pmb.create_added_salt(box_l=box_l,
                                           cation_name=cation_name,
                                           anion_name=anion_name,
+                               
                                           c_salt=0.5*c_salt_res)
+pmb.add_instances_to_engine()
+
 if verbose:
     print("Added salt")
 
@@ -143,7 +145,7 @@ espresso_system.time_step = dt
 espresso_system.cell_system.skin=0.4
 if args.mode == "interacting":
     #Set up the short-range interactions
-    pmb.setup_lj_interactions(espresso_system=espresso_system)
+    pmb.setup_lj_interactions()
 
 # Minimzation
 pmb.simulation_engine.relax_espresso_system(

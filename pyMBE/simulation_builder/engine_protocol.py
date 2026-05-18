@@ -1,11 +1,13 @@
 from typing import Protocol,runtime_checkable
 
 class EspressoParticleProtocol(Protocol):
+    """Class that emulates the estructure of the Espresso Particle class"""
     def add():
         return
     def by_id():
         return
 class EspressoBondedInterProtocol(Protocol):
+    """Class that emulates the structure of the EspressoBondedInterProtocol"""
     def add():
         return
     

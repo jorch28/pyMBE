@@ -28,7 +28,15 @@ class EspressoSimulation(SimulationEngine):
         pass
 
     def _add_angle(self,particle_id1,particle_id2,particle_id3, angle_inst):
+        """ helper function to add angle instances to espresso
 
+
+        Args:
+            particle_id1 (int): pid of the particle instance 1 that composes the angle 
+            particle_id2 (int): pid of the particle instance 2 that composes the angle 
+            particle_id3 (int): pid of the particle instance 3 that composes the angle 
+            angle_inst (pmb.AngleInstance):  dataclass containing information of an angle instance
+        """
         angle_tpl=self.db.get_template(name=angle_inst.name, 
                                         pmb_type="angle")
         espresso_angle_inst=self._get_angle_instance(angle_template=angle_tpl)
@@ -40,6 +48,13 @@ class EspressoSimulation(SimulationEngine):
                                     value=True)
         
     def _add_bond(self,particle_id1,particle_id2,bond_inst):
+        """helper function to add bond instances to espresso
+
+        Args:
+            particle_id1 (int): pid of the particle instance 1 that composes the bond 
+            particle_id2 (int): pid of the particle instance 2 that composes the bond
+            bond_inst (pmb.BondInstance): dataclass containing information of a bond instance
+        """
         bond_tpl=self.db.get_template(name=bond_inst.name, 
                                         pmb_type="bond")
         espresso_bond_inst=self._get_bond_instance(bond_template=bond_tpl)
@@ -50,6 +65,11 @@ class EspressoSimulation(SimulationEngine):
                                     value=True)
     
     def _add_particle(self,particle_id):
+        """helper function to add particle instances to espresso
+
+        Args:
+            particle_id (int): pid of the particle instance
+        """
         particle_instance=self.db.get_instance(pmb_type='particle',
                                  instance_id=particle_id)
         part_state = self.db.get_template(pmb_type="particle_state",
@@ -67,6 +87,14 @@ class EspressoSimulation(SimulationEngine):
 
             
     def _check_particle_exists_in_espresso(self,particle_id):
+        """_summary_
+
+        Args:
+            particle_id (int): pid of the particle that we want to check that exists within espresso
+
+        Returns:
+            particle_exists(bool): result of the espresso_exists function
+        """
         particle_exists=self.espresso_system.exists(particle_id)
         return particle_exists
     
@@ -137,9 +165,6 @@ class EspressoSimulation(SimulationEngine):
             particle_ids  ('Iterable[int]'):
                 A list (or other iterable) of ESPResSo particle IDs to remove.
 
-            espresso_system ('espressomd.system.System'):
-                The ESPResSo simulation system from which the particles
-                will be removed.
 
         Notess:
             - This method removes particles only from the ESPResSo simulation,
@@ -162,8 +187,6 @@ class EspressoSimulation(SimulationEngine):
         Args:
             bond_template ('BondTemplate'): 
                 BondTemplate object from the pyMBE database.
-            espresso_system ('espressomd.system.System'): 
-                An ESPResSo system object where the bond will be added or retrieved.
 
         Returns:
             ('espressomd.interactions.BondedInteraction'): 
@@ -188,7 +211,6 @@ class EspressoSimulation(SimulationEngine):
 
         Args:
             angle_template ('AngleTemplate'): The angle template to use.
-            espresso_system ('espressomd.system.System'): ESPResSo system.
 
         Returns:
             ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
@@ -228,14 +250,31 @@ class EspressoSimulation(SimulationEngine):
 
     
     def _get_particle_ids_in_espresso(self):
+        """_summary_
+        
+        Returns:
+            espresso_particles_id(list): list of pids of the particles that are saved in espresso
+        """
         espresso_particles=self.espresso_system.part.all()
         return espresso_particles.id    
     
     
     def _get_particle_pos_espresso(self,id):
+        """_summary_
+        Args:
+            id (int): pid of the particle that we want to check that exists within espresso
+
+        Returns:
+            espresso_particles_id(List[List[float,float,float]]): returns a nested list of floats containing x,y,z coordinates for each particle in espresso
+        """
         return self.espresso_system.part.by_id(id).pos
     
     def get_box_side_length(self):
+        """_summary_
+
+        Returns:
+            box_l(list[float,float,float]): return a list of floats regarding the dimensions of the box
+        """
         return self.box_l
     
     def calculate_net_charge(self,object_name,pmb_type,dimensionless=False):
@@ -243,8 +282,6 @@ class EspressoSimulation(SimulationEngine):
         Calculates the net charge per instance of a given pmb object type.
 
         Args:
-            espresso_system (espressomd.system.System):
-                ESPResSo system containing the particles.
             object_name (str):
                 Name of the object (e.g. molecule, residue, peptide, protein).
             pmb_type (str):
@@ -278,6 +315,7 @@ class EspressoSimulation(SimulationEngine):
         else:
             mean_charge = (np.mean([q.magnitude for q in charges.values()])* self.units.Quantity(1, "reduced_charge"))
         return {"mean": mean_charge, "instances": charges}
+    
     def change_volume_and_rescale_particles(self, d_new, dir="xyz"):
         """
         Change the volume for a particular dimension into the espresso system.
@@ -354,9 +392,6 @@ class EspressoSimulation(SimulationEngine):
                 pyMBE object type of the instance (e.g. '"molecule"', '"peptide"',
                 '"protein"', or any assembly-like type).
 
-            espresso_system ('espressomd.system.System'):
-                ESPResSo system in which the rigid object is defined.
-
         Notess:
             - This method requires ESPResSo to be compiled with the following
             features enabled:
@@ -392,8 +427,6 @@ class EspressoSimulation(SimulationEngine):
         Returns the number of particles of a given ESPResSo particle type.
 
         Args:
-            espresso_system ('espressomd.system.System'):
-                ESPResSo system object from which the particle count is queried.
             ptype ('int'):
                 ESPResSo particle type identifier.
 
@@ -430,8 +463,6 @@ class EspressoSimulation(SimulationEngine):
         If you experience crashes or unexpected behavior, please consider using your own relaxation procedure.
 
         Args:
-            espresso_system (`espressomd.system.System`): 
-                system object of espressomd library.
 
             seed (`int`): 
                 Seed for the random number generator for the thermostat.
@@ -489,8 +520,6 @@ class EspressoSimulation(SimulationEngine):
             units (`pint.UnitRegistry`): 
                 Unit registry for handling physical units.
 
-            espresso_system (`espressomd.system.System`): 
-                system object of espressomd library.
 
             kT (`pint.Quantity`): 
                 Thermal energy.
@@ -1198,8 +1227,6 @@ class EspressoSimulation(SimulationEngine):
         Sets up Langevin Dynamics for an ESPResSo simulation system.
 
         Args:
-            espresso_system (`espressomd.system.System`): 
-                system object of espressomd library.
 
             kT (`pint.Quantity`): 
                 Target temperature in reduced energy units.
@@ -1261,9 +1288,6 @@ class EspressoSimulation(SimulationEngine):
         Sets up the Lennard-Jones (LJ) potential between all pairs of particle states defined in the pyMBE database.
 
         Args:
-            espresso_system('espressomd.system.System'): 
-                Instance of a system object from the espressomd library.
-
             shift_potential('bool', optional): 
                 If True, a shift will be automatically computed such that the potential is continuous at the cutoff radius. Otherwise, no shift will be applied. Defaults to True.
 
@@ -1363,7 +1387,7 @@ class EspressoSimulation(SimulationEngine):
     
     def add_instances_to_engine(self):
         """
-            This method adds the set of particles instances and bond instances 
+            This method adds the set of particles instances and bond instances and angle instances
             that are not present in the pymbe data base 
         """
         

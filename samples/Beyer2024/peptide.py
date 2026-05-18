@@ -173,6 +173,9 @@ c_salt_calculated = pmb.create_added_salt(
                      c_salt=c_salt,
                      box_l=box_l)
 
+pmb.set_simulation_engine(espresso_system)
+pmb.add_instances_to_engine()
+
 cpH = pmb.setup_cpH(counter_ion=cation_name,
                     constant_pH=pH)
 
@@ -192,7 +195,7 @@ if verbose:
     print(f"The non-interacting type is set to {non_interacting_type}")
 
 #Setup the potential energy
-pmb.setup_lj_interactions ()
+pmb.setup_lj_interactions()
 pmb.simulation_engine.relax_espresso_system(
                           seed=langevin_seed)
 pmb.simulation_engine.setup_electrostatic_interactions(units=pmb.units,

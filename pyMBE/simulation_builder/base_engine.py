@@ -2,6 +2,7 @@ from abc import ABC,abstractmethod
 import numpy as np
 
 class SimulationEngine(ABC):
+    """Base Class for simulation engines contains methods """
     def __init__(self):
         pass
     @abstractmethod
@@ -27,9 +28,6 @@ class SimulationEngine(ABC):
             pmb_type ('str'):
                 Type of the pyMBE object. Must correspond to a particle-aggregating
                 template type (e.g. '"molecule"', '"residue"', '"peptide"', '"protein"').
-
-            espresso_system ('espressomd.system.System'):
-                ESPResSo system containing the particle instances.
 
         Returns:
             ('numpy.ndarray'):

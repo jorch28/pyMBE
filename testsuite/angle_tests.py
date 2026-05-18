@@ -281,11 +281,11 @@ class Test(ut.TestCase):
         angle_template = pmb.get_angle_template(side_name1="A",
                                                 central_name="B",
                                                 side_name2="C")
-
-        first_angle_object = pmb._get_espresso_angle_instance(angle_template=angle_template,
-                                                              espresso_system=espresso_system)
-        second_angle_object = pmb._get_espresso_angle_instance(angle_template=angle_template,
-                                                               espresso_system=espresso_system)
+        
+        pmb.set_simulation_engine(espresso_system)
+        print(espresso_system,"espresso_system")
+        first_angle_object = pmb._get_espresso_angle_instance(angle_template=angle_template)
+        second_angle_object = pmb._get_espresso_angle_instance(angle_template=angle_template)
 
         self.assertIs(first_angle_object, second_angle_object)
         self.assertEqual(len(pmb.db.espresso_angle_instances), 1)

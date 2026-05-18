@@ -180,6 +180,9 @@ protein_id = pmb.create_protein(name=protein_name,
                                 number_of_proteins=1,
                                 box_l=box_l,
                                 topology_dict=topology_dict)[0]
+
+pmb.set_simulation_engine(espresso_system)
+pmb.add_instances_to_engine()
 #Here we activate the motion of the protein 
 if args.move_protein:
     pmb.enable_motion_of_rigid_object(instance_id=protein_id,
@@ -187,6 +190,7 @@ if args.move_protein:
 
 # Here we put the protein on the center of the simulation box
 pmb.center_object_in_simulation_box(instance_id=protein_id,
+                                    box_l=box_l,
                                     pmb_type="protein")
 
 if not args.ideal:
@@ -201,7 +205,7 @@ if not args.ideal:
         if dist > protein_radius:
             protein_radius = dist
     # Create counter-ions 
-    protein_net_charge = pmb.calculate_net_charge(espresso_system=espresso_system,
+    protein_net_charge = pmb.calculate_net_charge(
                                                 object_name=protein_name,
                                                 pmb_type="protein",
                                                 dimensionless=True)["mean"]
@@ -238,6 +242,7 @@ if not args.ideal:
                         box_l=box_l,
                         number_of_particles=N_ions,
                         position=added_salt_ions_coords[N_ions:])
+    pmb.add_instances_to_engine()
 
 #Here we calculated the ionisable groups
 acid_base_ids = []
@@ -281,13 +286,13 @@ with open(frames_path / f"trajectory{n_frame}.vtf", mode='w+t') as coordinates:
 
 if WCA:
     pmb.setup_lj_interactions()
-    relax_espresso_system(
+    pmb.simulation_engine.relax_espresso_system(
                           seed=langevin_seed)
     if Electrostatics:
-        setup_electrostatic_interactions(units=pmb.units,
+        pmb.simulation_engine.setup_electrostatic_interactions(units=pmb.units,
                                         kT=pmb.kT)
         
-setup_langevin_dynamics(
+pmb.simulation_engine.setup_langevin_dynamics(
                         kT = pmb.kT, 
                         seed = langevin_seed)
 

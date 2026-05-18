@@ -234,9 +234,6 @@ class pymbe_library():
             nodes ('dict'): 
                 {node_index: {"name": node_particle_name, "pos": node_position, "id": node_particle_instance_id}}
 
-            espresso_system ('espressomd.system.System'): 
-                ESPResSo system object where the hydrogel chain will be created.
-
             use_default_bond ('bool', optional): 
                 If True, use a default bond template if no specific template exists. Defaults to False.
 
@@ -381,9 +378,8 @@ class pymbe_library():
 
             node_name ('str'): 
                 name of the node particle defined in pyMBE.
-
-            espresso_system (espressomd.system.System): 
-                ESPResSo system object where the hydrogel node will be created.
+            
+            box_l('list[float,float,float]'): list of floats with the dimensions of the box
 
         Returns:
             ('tuple(list,int)'):
@@ -408,8 +404,6 @@ class pymbe_library():
         Args:
             bond_template ('BondTemplate'): 
                 BondTemplate object from the pyMBE database.
-            espresso_system ('espressomd.system.System'): 
-                An ESPResSo system object where the bond will be added or retrieved.
 
         Returns:
             ('espressomd.interactions.BondedInteraction'): 
@@ -489,10 +483,6 @@ class pymbe_library():
             particle_ids  ('Iterable[int]'):
                 A list (or other iterable) of ESPResSo particle IDs to remove.
 
-            espresso_system ('espressomd.system.System'):
-                The ESPResSo simulation system from which the particles
-                will be removed.
-
         Notess:
             - This method removes particles only from the ESPResSo simulation,
             **not** from the pyMBE database. Database cleanup must be handled
@@ -518,9 +508,6 @@ class pymbe_library():
             pmb_type ('str'):
                 Type of the pyMBE object. Must correspond to a particle-aggregating
                 template type (e.g. '"molecule"', '"residue"', '"peptide"', '"protein"').
-
-            espresso_system ('espressomd.system.System'):
-                ESPResSo system containing the particle instances.
 
         Returns:
             ('numpy.ndarray'):
@@ -713,8 +700,6 @@ class pymbe_library():
         Calculates the net charge per instance of a given pmb object type.
 
         Args:
-            espresso_system (espressomd.system.System):
-                ESPResSo system containing the particles.
             object_name (str):
                 Name of the object (e.g. molecule, residue, peptide, protein).
             pmb_type (str):
@@ -743,12 +728,11 @@ class pymbe_library():
         Args:
             instance_id ('int'):
                 ID of the pyMBE object instance to be centered.
+            
+            box_l('list[float,float,float]'): list of floats with the dimensions of the box
 
             pmb_type ('str'):
                 Type of the pyMBE object.
-
-            espresso_system ('espressomd.system.System'):
-                ESPResSo system object in which the particles are defined.
 
         Notes:
             - Works for both cubic and non-cubic simulation boxes.
@@ -777,7 +761,6 @@ class pymbe_library():
         Creates a 'c_salt' concentration of 'cation_name' and 'anion_name' ions into the 'espresso_system'.
 
         Args:
-            espresso_system('espressomd.system.System'): instance of an espresso system object.
             cation_name('str'): 'name' of a particle with a positive charge.
             anion_name('str'): 'name' of a particle with a negative charge.
             c_salt('float'): Salt concentration.
@@ -841,9 +824,6 @@ class pymbe_library():
             particle_id2 ('int'): 
                 pyMBE and ESPResSo ID of the second particle.
 
-            espresso_system ('espressomd.system.System'): 
-                ESPResSo system object where the bond will be created.
-
             use_default_bond ('bool', optional): 
                 If True, use a default bond template if no specific template exists. Defaults to False.
 
@@ -876,14 +856,13 @@ class pymbe_library():
             object_name ('str'): 
                 'name' of a pyMBE object.
 
-            espresso_system ('espressomd.system.System'): 
-                Instance of a system object from the espressomd library.
-
             cation_name ('str'): 
                 'name' of a particle with a positive charge.
 
             anion_name ('str'): 
                 'name' of a particle with a negative charge.
+            
+            box_l('list[float,float,float]'): list of floats with the dimensions of the box
 
         Returns: 
             ('dict'): 
@@ -950,11 +929,10 @@ class pymbe_library():
         Creates a hydrogel in espresso_system using a pyMBE hydrogel template given by 'name'
 
         Args:
+            box_l('list[float,float,float]'): list of floats with the dimensions of the box
+
             name ('str'): 
                 name of the hydrogel template in the pyMBE database.
-
-            espresso_system ('espressomd.system.System'): 
-                ESPResSo system object where the hydrogel will be created.
 
             use_default_bond ('bool', optional): 
                 If True, use a default bond template if no specific template exists. Defaults to False.
@@ -1058,8 +1036,7 @@ class pymbe_library():
             name ('str'): 
                 Label of the molecule type to be created. 'name'.
 
-            espresso_system ('espressomd.system.System'): 
-                Instance of a system object from espressomd library.
+            box_l('list[float,float,float]'): list of floats with the dimensions of the box
 
             number_of_molecules ('int'): 
                 Number of molecules or peptides of type 'name' to be created.
@@ -1208,9 +1185,8 @@ class pymbe_library():
         Args:
             name ('str'): 
                 Label of the particle template in the pyMBE database. 
-
-            espresso_system ('espressomd.system.System'): 
-                Instance of a system object from the espressomd library.
+            
+            box_l('list[float,float,float]'): list of floats with the dimensions of the box
 
             number_of_particles ('int'): 
                 Number of particles to be created.
@@ -1268,10 +1244,9 @@ class pymbe_library():
                 Name of the protein template stored in the pyMBE database.
             
             number_of_proteins (int):
-                Number of protein molecules to generate.  
-            
-            espresso_system (espressomd.system.System):
-                The ESPResSo simulation system where the protein molecules will be created.
+                Number of protein molecules to generate.
+
+            box_l('list[float,float,float]'): list of floats with the dimensions of the box  
             
             topology_dict (dict):
                 Dictionary defining the internal structure of the protein. Expected format:
@@ -1356,11 +1331,10 @@ class pymbe_library():
             name ('str'): 
                 Label of the residue type to be created. 
 
-            espresso_system ('espressomd.system.System'): 
-                Instance of a system object from espressomd library.
-
             central_bead_position ('list' of 'float'): 
                 Position of the central bead.
+            
+            box_l('list[float,float,float]'): list of floats with the dimensions of the box
 
             use_default_bond ('bool'): 
                 Switch to control if a bond of type 'default' is used to bond a particle whose bonds types are not defined in the pyMBE database.
@@ -1651,7 +1625,6 @@ class pymbe_library():
             particle_id1 ('int'): ID of the first side particle.
             particle_id2 ('int'): ID of the central particle.
             particle_id3 ('int'): ID of the second side particle.
-            espresso_system ('espressomd.system.System'): ESPResSo system.
             use_default_angle ('bool', optional): If True, use the default angle if no specific one is found.
         """
         particle_inst_1 = self.db.get_instance(pmb_type="particle", instance_id=particle_id1)
@@ -1710,24 +1683,23 @@ class pymbe_library():
 
         raise ValueError(f"No angle template found for '{side_name1}-{central_name}-{side_name2}', and default angles are deactivated.")
 
-    def _get_espresso_angle_instance(self, angle_template, espresso_system):
+    def _get_espresso_angle_instance(self, angle_template):
         """
         Retrieve or create an angle interaction in an ESPResSo system for a given angle template.
 
         Args:
             angle_template ('AngleTemplate'): The angle template to use.
-            espresso_system ('espressomd.system.System'): ESPResSo system.
 
         Returns:
             ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
         """
-        if angle_template.name in self.db.espresso_angle_instances:
-            return self.db.espresso_angle_instances[angle_template.name]
-        angle_inst = self._create_espresso_angle_instance(angle_type=angle_template.angle_type,
-                                                          angle_parameters=angle_template.get_parameters(self.units))
-        self.db.espresso_angle_instances[angle_template.name] = angle_inst
-        espresso_system.bonded_inter.add(angle_inst)
-        return angle_inst
+        if isinstance(self.simulation_engine,EspressoSimulation):
+            angle_inst=self.simulation_engine._get_angle_instance(angle_template=angle_template)
+            return angle_inst
+        elif isinstance(self.simulation_engine,LammpsSimulation):
+            raise NotImplementedError('It has not yet been implemented for Lammps')
+        else:
+            raise RuntimeError('You have not set up any simulation engine yet')
 
     def _create_espresso_angle_instance(self, angle_type, angle_parameters):
         """
@@ -1750,7 +1722,6 @@ class pymbe_library():
         this method finds all neighbor pairs and applies any matching angle potential.
 
         Args:
-            espresso_system ('espressomd.system.System'): ESPResSo system.
             entity_id ('int'): The molecule_id or residue_id to generate angles for.
             entity_id_col ('str'): Either "molecule_id" or "residue_id".
         """
@@ -2160,9 +2131,6 @@ class pymbe_library():
             pmb_type ('str'):
                 pyMBE object type of the instance (e.g. '"molecule"', '"peptide"',
                 '"protein"', or any assembly-like type).
-
-            espresso_system ('espressomd.system.System'):
-                ESPResSo system in which the rigid object is defined.
 
         Notess:
             - This method requires ESPResSo to be compiled with the following
@@ -2790,6 +2758,15 @@ class pymbe_library():
         logging.info(self.get_reduced_units())
 
     def set_simulation_engine(self,simulation_engine,box_l=None):
+        """_summary_
+
+        Args:
+            simulation_engine (Any): object which contains the methods to setup molecular dynamics and montecarlo simulations
+            box_l('list[float,float,float]'): list of floats with the dimensions of the box
+
+        Raises:
+            ValueError: _description_
+        """
         if isinstance(simulation_engine,EspressoSystemProtocol):
             self.simulation_engine=EspressoSimulation(box_l=simulation_engine.box_l,
                                                       db=self.db,
@@ -3011,8 +2988,6 @@ class pymbe_library():
         Sets up the Lennard-Jones (LJ) potential between all pairs of particle states defined in the pyMBE database.
 
         Args:
-            espresso_system('espressomd.system.System'): 
-                Instance of a system object from the espressomd library.
 
             shift_potential('bool', optional): 
                 If True, a shift will be automatically computed such that the potential is continuous at the cutoff radius. Otherwise, no shift will be applied. Defaults to True.

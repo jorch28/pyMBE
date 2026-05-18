@@ -8,7 +8,7 @@ def deprecated(new_function):
         @wraps(func)
         def wrapper(*args, **kwargs):
             warnings.warn(
-                f"{func.__name__} is deprecated and it will be removed in the future. Please use"+new_function+"instead.",
+                f"{func.__name__} is deprecated and it will be removed in the future. Please use"+ new_function +"instead.",
                 DeprecationWarning,
                 stacklevel=2
             )
