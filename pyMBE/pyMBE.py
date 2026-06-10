@@ -224,7 +224,7 @@ class pymbe_library():
         bond_instance = self.simulation_engine._create_bond_instance(bond_type,bond_parameters)
         return bond_instance
 
-    def _create_hydrogel_chain(self, hydrogel_chain, nodes, use_default_bond=False, gen_angle=False):
+    def _create_hydrogel_chain(self, hydrogel_chain, nodes,box_l, use_default_bond=False, gen_angle=False):
         """
         Creates a chain between two nodes of a hydrogel.
 
@@ -233,7 +233,7 @@ class pymbe_library():
                 template of a hydrogel chain
             nodes ('dict'): 
                 {node_index: {"name": node_particle_name, "pos": node_position, "id": node_particle_instance_id}}
-
+            box_l('list[float,float,float]'): side length of the simulation box for x,y and z coordinates.
             use_default_bond ('bool', optional): 
                 If True, use a default bond template if no specific template exists. Defaults to False.
 
@@ -291,7 +291,7 @@ class pymbe_library():
         first_bead_pos = np.array((nodes[node_start_label]["pos"])) + np.array(backbone_vector)*l0
         mol_id = self.create_molecule(name=molecule_name,  # Use the name defined earlier
                                       number_of_molecules=1,  # Creating one chain
-                                      box_l=self.lattice_builder.box_l, ### Add lattice_builder box length size
+                                      box_l=box_l, ### Add lattice_builder box length size, this should be box_l=[self.lattice_builder.box_l]*3
                                       list_of_first_residue_positions=[first_bead_pos.tolist()], #Start at the first node
                                       backbone_vector=np.array(backbone_vector)/l0,
                                       use_default_bond=use_default_bond,
@@ -968,9 +968,11 @@ class pymbe_library():
                                      value=assembly_id)
         for hydrogel_chain in hydrogel_tpl.chain_map:
             molecule_id = self._create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
-                                                      nodes=nodes, 
+                                                      nodes=nodes,
+                                                      box_l=box_l,
                                                       use_default_bond=use_default_bond,
-                                                      gen_angle=gen_angle)
+                                                      gen_angle=gen_angle,
+                                                      )
             self.db._update_instance(instance_id=molecule_id,
                                      pmb_type="molecule",
                                      attribute="assembly_id",
@@ -2920,6 +2922,7 @@ class pymbe_library():
                                                                                 activity_coefficient=activity_coefficient, 
                                                                                 exclusion_range=exclusion_range, 
                                                                                 use_exclusion_radius_per_type=use_exclusion_radius_per_type)
+            
             return RE, ionic_strength_res
         elif isinstance(self.simulation_engine,LammpsSimulation):
             raise NotImplementedError('In this version espresso has only been decoupled. Interoperability with other engines is not yet provided')

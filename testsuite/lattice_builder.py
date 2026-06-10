@@ -126,7 +126,8 @@ class Test(ut.TestCase):
         with self.assertRaises(ValueError):
             pmb._create_hydrogel_chain(
                 "[0 0 0]", "[1 1 1]",
-                {0: [0, 0, 0], 1: diamond.box_l / 4.0 * np.ones(3)}
+                {0: [0, 0, 0], 1: diamond.box_l / 4.0 * np.ones(3)},
+                [diamond.box_l]*3
             )
 
         # --- Lattice initialization ---
@@ -244,6 +245,7 @@ class Test(ut.TestCase):
                                       molecule_name="test_chain")
         mol_id = pmb2._create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
                                             nodes=nodes,
+                                            box_l=box_l,
                                             use_default_bond=True)
         # Extract created particle IDs
         chain_pids = pmb2.db._find_instance_ids_by_attribute(pmb_type="particle",
@@ -284,6 +286,7 @@ class Test(ut.TestCase):
         ):
             pmb._create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
                                        nodes={},
+                                       box_l=box_l,
                                        use_default_bond=False)
 
     def test_plot(self):

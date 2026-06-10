@@ -347,6 +347,8 @@ class EspressoSimulation(SimulationEngine):
         self.espresso_system.change_volume_and_rescale_particles(d_new=d_new,
                                                                  dir=dir)
         return
+    
+    
     def do_reaction(self,algorithm, steps):
         """
         Executes reaction steps using an ESPResSo reaction algorithm with

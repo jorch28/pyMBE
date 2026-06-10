@@ -34,8 +34,6 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convenience
 
-from pyMBE.lib.handy_functions import do_reaction
-
 #######################################################
 # Setting parameters for the simulation
 #######################################################
@@ -248,7 +246,7 @@ grxmc.set_non_interacting_type (type=non_interacting_type)
 
 for i in tqdm.trange(100):
     espresso_system.integrator.run(steps=1000)
-    do_reaction(grxmc,1000)
+    pmb.simulation_engine.do_reaction(grxmc,1000)
 
 pmb.simulation_engine.setup_electrostatic_interactions(units=pmb.units,
                                  kT=pmb.kT,
