@@ -272,7 +272,7 @@ class pymbe_library():
         # Finding a backbone vector between node_start and node_end
         vec_between_nodes = np.array(nodes[node_end_label]["pos"]) - np.array(nodes[node_start_label]["pos"])
         vec_between_nodes = vec_between_nodes - self.lattice_builder.box_l * np.round(vec_between_nodes/self.lattice_builder.box_l)
-        backbone_vector = vec_between_nodes / np.linalg.norm(vec_between_nodes)
+        backbone_vector = vec_between_nodes / (self.lattice_builder.mpc+1)
         if reverse_residue_order:
             vec_between_nodes *= -1.0
         # Calculate the start position of the chain
