@@ -203,7 +203,7 @@ class Test(ut.TestCase):
         molecule_ids = pmb.db._find_instance_ids_by_attribute(pmb_type="molecule",
                                                             attribute="assembly_id",
                                                             value=hydrogel_id)
-        expected = (diamond_lattice.mpc - 1) * generic_bond_length.m_as("reduced_length")
+        expected = (diamond_lattice.mpc -1) * generic_bond_length.magnitude       
         for mol_id in molecule_ids:
             particle_ids = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                                 attribute="molecule_id",
