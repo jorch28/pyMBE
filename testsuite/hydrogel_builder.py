@@ -203,14 +203,14 @@ class Test(ut.TestCase):
         molecule_ids = pmb.db._find_instance_ids_by_attribute(pmb_type="molecule",
                                                             attribute="assembly_id",
                                                             value=hydrogel_id)
-        expected = (diamond_lattice.mpc -1) * generic_bond_length.magnitude       
+        expected = (diamond_lattice.mpc -1) * generic_bond_length.m_as('reduced_length')       
         for mol_id in molecule_ids:
             particle_ids = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                                 attribute="molecule_id",
                                                                 value=mol_id)
             positions = np.array([espresso_system.part.by_id(pid).pos for pid in particle_ids])
-            contour = np.sum(np.linalg.norm(np.diff(positions, axis=0), axis=1))
-            np.testing.assert_allclose(contour, expected, atol=1e-7)
+            contour = np.sum(np.linalg.norm(np.diff(positions, axis=0), axis=1))*pmb.units.nm
+            np.testing.assert_allclose(contour.m_as('reduced_length'), expected, atol=1e-7)
     
     def test_exceptions(self):
         """
