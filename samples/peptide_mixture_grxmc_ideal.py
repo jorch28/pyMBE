@@ -24,7 +24,7 @@ import argparse
 from espressomd.io.writer import vtf
 import pyMBE
 from pyMBE.lib.analysis import built_output_name
-from pyMBE.lib.handy_functions import do_reaction, define_peptide_AA_residues
+from pyMBE.lib.handy_functions import define_peptide_AA_residues
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)

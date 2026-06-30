@@ -28,7 +28,7 @@ import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
 
 #Import functions from handy_functions script 
-from pyMBE.lib.handy_functions import setup_electrostatic_interactions, relax_espresso_system, setup_langevin_dynamics, do_reaction, define_protein_AA_particles, define_protein_AA_residues
+from pyMBE.lib.handy_functions import do_reaction, define_protein_AA_particles, define_protein_AA_residues
 from pyMBE.lib import analysis
 # Here you can adjust the width of the panda columns displayed when running the code 
 pd.options.display.max_colwidth = 10

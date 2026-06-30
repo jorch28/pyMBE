@@ -25,7 +25,6 @@ import scipy.constants
 import scipy.optimize
 import logging
 import importlib.resources
-import warnings
 
 # Database
 from pyMBE.storage.manager import Manager
@@ -39,7 +38,6 @@ from pyMBE.storage.templates.protein import ProteinTemplate
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
 from pyMBE.storage.templates.bond import BondTemplate
 from pyMBE.storage.templates.angle import AngleTemplate
-from pyMBE.storage.templates.lj import LJInteractionTemplate
 ## Instances
 from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.instances.residue import ResidueInstance

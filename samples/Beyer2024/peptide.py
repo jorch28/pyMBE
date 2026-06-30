@@ -26,7 +26,6 @@ import tqdm
 # Import pyMBE
 import pyMBE
 from pyMBE.lib import analysis
-from pyMBE.lib import handy_functions as hf
 from pyMBE.lib.handy_functions import do_reaction, define_peptide_AA_residues
 
 # Create an instance of pyMBE library

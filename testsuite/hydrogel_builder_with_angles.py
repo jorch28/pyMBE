@@ -176,7 +176,7 @@ class Test(ut.TestCase):
         """
         Hydrogel creation should not generate angles unless gen_angle is requested.
         """
-        pmb_local, espresso_system_local, hydrogel_name_local, _ = build_simple_hydrogel_with_optional_angles(
+        pmb_local, _, hydrogel_name_local, _ = build_simple_hydrogel_with_optional_angles(
             junction_angle_mode="full"
         )
         pmb_local.create_hydrogel(hydrogel_name_local, box_l)

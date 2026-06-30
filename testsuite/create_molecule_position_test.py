@@ -19,7 +19,6 @@
 import espressomd
 import pyMBE
 import unittest as ut
-import pandas as pd
 
 pmb = pyMBE.pymbe_library(seed=42)
 

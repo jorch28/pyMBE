@@ -29,7 +29,7 @@ import argparse
 pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convenience
-from pyMBE.lib.handy_functions import setup_electrostatic_interactions, relax_espresso_system, setup_langevin_dynamics, do_reaction, define_peptide_AA_residues
+from pyMBE.lib.handy_functions import define_peptide_AA_residues
 from pyMBE.lib.analysis import built_output_name
 
 parser = argparse.ArgumentParser(description='Sample script to run the pre-made peptide models with pyMBE')
