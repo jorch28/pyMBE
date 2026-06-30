@@ -781,7 +781,7 @@ class pymbe_library():
         if anion_charge >= 0:
             raise ValueError(f'ERROR anion charge must be negative, charge {anion_charge}')
         # Calculate the number of ions in the simulation box
-        volume=self.units.Quantity(box_l[0]*box_l[1]*box_l[2], 'reduced_length**3') ### Changed espresso.volume() to box_l**3
+        volume=self.units.Quantity(np.prod(box_l), 'reduced_length**3')
         if c_salt.check('[substance] [length]**-3'):
             N_ions= int((volume*c_salt.to('mol/reduced_length**3')*self.N_A).magnitude)
             c_salt_calculated=N_ions/(volume*self.N_A)
