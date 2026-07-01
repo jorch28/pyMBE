@@ -20,7 +20,7 @@ import espressomd
 import espressomd.electrostatics
 import espressomd.version
 import warnings
-from  typing import List,Set
+from  typing import List
 import numpy as np
 import logging
 from pyMBE.simulation_builder.base_engine import SimulationEngine
@@ -104,7 +104,8 @@ class EspressoSimulation(SimulationEngine):
 
             
     def _check_particle_exists_in_espresso(self,particle_id):
-        """_summary_
+        """
+            Checks the existance of a particle_id in a espresso_system instance.
 
         Args:
             particle_id (int): pid of the particle that we want to check that exists within espresso
@@ -267,7 +268,8 @@ class EspressoSimulation(SimulationEngine):
 
     
     def _get_particle_ids_in_espresso(self):
-        """_summary_
+        """
+            Gets a list of all the particles_id in espresso_system instance.
         
         Returns:
             espresso_particles_id(list): list of pids of the particles that are saved in espresso
@@ -277,7 +279,8 @@ class EspressoSimulation(SimulationEngine):
     
     
     def _get_particle_pos_espresso(self,id):
-        """_summary_
+        """
+            Gets the particle position of 
         Args:
             id (int): pid of the particle that we want to check that exists within espresso
 

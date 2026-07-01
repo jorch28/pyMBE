@@ -160,3 +160,9 @@ class SimulationEngine(ABC):
             ionic_strength_res = 0.5 * (cNa_res + cCl_res + cOH_res + cH_res)
             determined_pH = -np.log10(cH_res.to("mol/L").magnitude * np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
         return cH_res, cOH_res, cNa_res, cCl_res
+
+class DummyEngine:
+    def __getattr__(self, attr):
+        if attr not in self.__dict__:
+            raise RuntimeError('You have not set up any simulation engine yet')
+        return super().__getattr__(attr)
