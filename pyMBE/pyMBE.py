@@ -50,6 +50,7 @@ from pyMBE.storage.instances.hydrogel import HydrogelInstance
 
 from pyMBE.simulation_builder.espresso_engine import EspressoSimulation
 from pyMBE.simulation_builder.lammps_engine import LammpsSimulation 
+from pyMBE.simulation_builder.base_engine import DummyEngine
 from pyMBE.simulation_builder.engine_protocol import EspressoSystemProtocol,LammpsProtocol
 ## Reactions
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
@@ -129,7 +130,7 @@ class pymbe_library():
                                Kw=Kw)
         
         self.db = Manager(units=self.units)
-        self.simulation_engine = None 
+        self.simulation_engine = DummyEngine()
         self.lattice_builder = None
         self.root = importlib.resources.files(__package__)
 
@@ -1178,7 +1179,7 @@ class pymbe_library():
             molecule_ids.append(molecule_id)
         return molecule_ids
     
-    def create_particle(self, name, box_l, number_of_particles, position=None, fix=[False,False,False]):
+    def create_particle(self, name, box_l, number_of_particles, position=None, fix=False):
         """
         Creates one or more particles in an ESPResSo system based on the particle template in the pyMBE database.
         
@@ -1211,9 +1212,10 @@ class pymbe_library():
         part_state = self.db.get_template(pmb_type="particle_state",
                                          name=part_tpl.initial_state)
         name_state=part_state.name
-        #z= part_state.z
-        #es_type = part_state.es_type
-        # Create the new particles into  ESPResSo 
+
+        if fix is False:
+            fix=[fix]*3
+
         created_pid_list=[]
         for index in range(number_of_particles):
             if position is None:
@@ -1223,8 +1225,6 @@ class pymbe_library():
             
             particle_id = self.db._propose_instance_id(pmb_type="particle")
             created_pid_list.append(particle_id)
-            # kwargs = dict(id=particle_id, pos=particle_position, type=es_type, q=z)
-            # espresso_system.part.add(**kwargs)
             part_inst = ParticleInstance(name=name,
                                          particle_id=particle_id,
                                          initial_state=name_state,
@@ -2758,8 +2758,9 @@ class pymbe_library():
         logging.info(self.get_reduced_units())
 
     def set_simulation_engine(self,simulation_engine,box_l=None):
-        """_summary_
-
+        """ 
+        Sets the instance attribute simulation_engine to an instance of a class of type SimulationEngine.
+            
         Args:
             simulation_engine (Any): object which contains the methods to setup molecular dynamics and montecarlo simulations
             box_l('list[float,float,float]'): list of floats with the dimensions of the box
@@ -2809,17 +2810,12 @@ class pymbe_library():
                 Instance of a reaction_methods.ConstantpHEnsemble object from the espressomd library.
         """
 
-        if isinstance(self.simulation_engine,EspressoSimulation):
-            RE = self.simulation_engine.setup_cpH(counter_ion=counter_ion, 
-                                                  constant_pH=constant_pH, 
-                                                  exclusion_range=exclusion_range, 
-                                                  use_exclusion_radius_per_type = use_exclusion_radius_per_type)
-            return RE
-        elif isinstance(self.simulation_engine,LammpsSimulation):
-            raise NotImplementedError('In this version espresso has only been decoupled. Interoperability with other engines is not yet provided')
-        else:
-            raise RuntimeError('You need to set your simulation Engine')
-
+       
+        RE = self.simulation_engine.setup_cpH(counter_ion=counter_ion, 
+                                        constant_pH=constant_pH, 
+                                        exclusion_range=exclusion_range, 
+                                        use_exclusion_radius_per_type = use_exclusion_radius_per_type)
+        return RE
 
     def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
@@ -2849,18 +2845,14 @@ class pymbe_library():
             ('reaction_methods.ReactionEnsemble'): 
                 Instance of a reaction_methods.ReactionEnsemble object from the espressomd library.
         """
-        if isinstance(self.simulation_engine,EspressoSimulation):
-            RE = self.simulation_engine.setup_gcmc(c_salt_res=c_salt_res, 
-                                                    salt_anion_name=salt_anion_name, 
-                                                    salt_cation_name=salt_cation_name, 
-                                                    activity_coefficient=activity_coefficient, 
-                                                    exclusion_range=exclusion_range, 
-                                                    use_exclusion_radius_per_type = use_exclusion_radius_per_type)
-            return RE
-        elif isinstance(self.simulation_engine,LammpsSimulation):
-            raise NotImplementedError('In this version espresso has only been decoupled. Interoperability with other engines is not yet provided')
-        else:
-            raise RuntimeError('You need to set your simulation Engine')
+
+        RE = self.simulation_engine.setup_gcmc(c_salt_res=c_salt_res, 
+                                                salt_anion_name=salt_anion_name, 
+                                                salt_cation_name=salt_cation_name, 
+                                                activity_coefficient=activity_coefficient, 
+                                                exclusion_range=exclusion_range, 
+                                                use_exclusion_radius_per_type = use_exclusion_radius_per_type)
+        return RE
         
 
     def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
@@ -2868,6 +2860,7 @@ class pymbe_library():
         Sets up acid/base reactions for acidic/basic monoprotic particles defined in the pyMBE database, 
         as well as a grand-canonical coupling to a reservoir of small ions. 
         
+
         Args:
             pH_res ('float'): 
                 pH-value in the reservoir.
@@ -2897,7 +2890,8 @@ class pymbe_library():
                 Controls if one exclusion_radius for each espresso_type is used. Defaults to 'False'.
 
         Returns:
-            'tuple(reaction_methods.ReactionEnsemble,pint.Quantity)':
+            For the Espresso system class:
+            Output ('tuple(reaction_methods.ReactionEnsemble,pint.Quantity)'):
 
                 'reaction_methods.ReactionEnsemble':  
                     espressomd reaction_methods object with all reactions necesary to run the GRxMC ensamble.
@@ -2910,22 +2904,19 @@ class pymbe_library():
 
         [1] Landsgesell, J., Hebbeker, P., Rud, O., Lunkad, R., Košovan, P., & Holm, C. (2020). Grand-reaction method for simulations of ionization equilibria coupled to ion partitioning. Macromolecules, 53(8), 3007-3020.
         """
-        if isinstance(self.simulation_engine,EspressoSimulation):
-            RE, ionic_strength_res=self.simulation_engine.setup_grxmc_reactions(pH_res=pH_res, 
-                                                                                c_salt_res=c_salt_res, 
-                                                                                proton_name=proton_name, 
-                                                                                hydroxide_name=hydroxide_name, 
-                                                                                salt_cation_name=salt_cation_name, 
-                                                                                salt_anion_name=salt_anion_name, 
-                                                                                activity_coefficient=activity_coefficient, 
-                                                                                exclusion_range=exclusion_range, 
-                                                                                use_exclusion_radius_per_type=use_exclusion_radius_per_type)
-            
-            return RE, ionic_strength_res
-        elif isinstance(self.simulation_engine,LammpsSimulation):
-            raise NotImplementedError('In this version espresso has only been decoupled. Interoperability with other engines is not yet provided')
-        else:
-            raise RuntimeError('You need to set your simulation Engine')
+        
+        output=self.simulation_engine.setup_grxmc_reactions(pH_res=pH_res, 
+                                                            c_salt_res=c_salt_res, 
+                                                            proton_name=proton_name, 
+                                                            hydroxide_name=hydroxide_name, 
+                                                            salt_cation_name=salt_cation_name, 
+                                                            salt_anion_name=salt_anion_name, 
+                                                            activity_coefficient=activity_coefficient, 
+                                                            exclusion_range=exclusion_range, 
+                                                            use_exclusion_radius_per_type=use_exclusion_radius_per_type)
+        
+        return output
+        
     def setup_grxmc_unified(self, pH_res, c_salt_res, cation_name, anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
         Sets up acid/base reactions for acidic/basic 'particles' defined in the pyMBE database, as well as a grand-canonical coupling to a 
@@ -2954,7 +2945,8 @@ class pymbe_library():
                 Controls if one exclusion_radius per each espresso_type. Defaults to 'False'.
 
         Returns:
-            'tuple(reaction_methods.ReactionEnsemble,pint.Quantity)':
+            For the Espresso system class:
+            Output ('tuple(reaction_methods.ReactionEnsemble,pint.Quantity)'):
 
                 'reaction_methods.ReactionEnsemble':  
                     espressomd reaction_methods object with all reactions necesary to run the GRxMC ensamble.
@@ -2969,19 +2961,16 @@ class pymbe_library():
         [1] Curk, T., Yuan, J., & Luijten, E. (2022). Accelerated simulation method for charge regulation effects. The Journal of Chemical Physics, 156(4).
         [2] Landsgesell, J., Hebbeker, P., Rud, O., Lunkad, R., Košovan, P., & Holm, C. (2020). Grand-reaction method for simulations of ionization equilibria coupled to ion partitioning. Macromolecules, 53(8), 3007-3020.
         """
-        if isinstance(self.simulation_engine,EspressoSimulation):
-            RE, ionic_strength_res=self.simulation_engine.setup_grxmc_unified(pH_res=pH_res, 
+        
+        output=self.simulation_engine.setup_grxmc_unified(pH_res=pH_res, 
                                                                               c_salt_res=c_salt_res, 
                                                                               cation_name=cation_name, 
                                                                               anion_name=anion_name, 
                                                                               activity_coefficient=activity_coefficient, 
                                                                               exclusion_range=exclusion_range, 
                                                                               use_exclusion_radius_per_type = use_exclusion_radius_per_type)
-            return RE, ionic_strength_res
-        elif isinstance(self.simulation_engine,LammpsSimulation):
-            raise NotImplementedError('In this version espresso has only been decoupled. Interoperability with other engines is not yet provided')
-        else:
-            raise RuntimeError('You need to set your simulation Engine')
+        return output
+        
             
 
     def setup_lj_interactions(self, shift_potential=True, combining_rule='Lorentz-Berthelot'):
