@@ -222,7 +222,7 @@ class Test(ut.TestCase):
         """
         Defining only a subset of required crosslinker-adjacent angles should fail.
         """
-        pmb_local, espresso_system_local, hydrogel_name_local, _ = build_simple_hydrogel_with_optional_angles(
+        pmb_local, _, hydrogel_name_local, _ = build_simple_hydrogel_with_optional_angles(
             junction_angle_mode="partial"
         )
         with self.assertRaises(ValueError):
