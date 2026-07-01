@@ -22,5 +22,7 @@ from pyMBE.simulation_builder.base_engine import SimulationEngine
 class LammpsSimulation(SimulationEngine):
     def __init__(self):
         pass
-    def add_instances_to_engine(self):
-        return 
+    def __getattr__(self, attr):
+        if attr not in self.__dict__:
+            raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+        return super().__getattr__(attr)
