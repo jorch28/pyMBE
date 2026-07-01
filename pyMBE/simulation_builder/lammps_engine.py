@@ -23,6 +23,15 @@ class LammpsSimulation(SimulationEngine):
     def __init__(self):
         pass
     def __getattr__(self, attr):
-        if attr not in self.__dict__:
-            raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
-        return super().__getattr__(attr)
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+    
+    def _add_angle(self):
+        return
+    def _create_bond_instance(self):
+        return
+    def _get_bond_instance(self):
+        return
+    def add_instances_to_engine(self):
+        return
+    
+    
