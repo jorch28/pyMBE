@@ -24,8 +24,9 @@ class LammpsSimulation(SimulationEngine):
         pass
     def __getattr__(self, attr):
         raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
-    
     def _add_angle(self):
+        return
+    def _check_bond_inputs(self):
         return
     def _create_bond_instance(self):
         return
