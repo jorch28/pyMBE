@@ -30,11 +30,27 @@ class EspressoBondedInterProtocol(Protocol):
         return
     
 @runtime_checkable
-class EspressoSystemProtocol(Protocol):
+class EspressoSystemProtocolversion422(Protocol):
     """ Class that emulates the structure of the methods employed by Pymbe from the espressomd.System class
         . The decorator @runtime_checkable allows to only check for the structure not the types"""
     part: EspressoParticleProtocol
     bonded_inter: EspressoBondedInterProtocol
+
+
+@runtime_checkable  
+class EspressoSystemProtocolversion501(Protocol):
+    def change_volume_and_rescale_particles(self, d_new, dir="xyz"):
+        return
+    def volume(self):
+        return
+    def distance(self, p1, p2):
+        return
+    def distance_vec(self, p1, p2):
+        return
+    def velocity_difference(self, p1, p2):
+        return
+    def auto_exclusions(self, distance):
+        pass
 
 @runtime_checkable
 class LammpsProtocol(Protocol):

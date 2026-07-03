@@ -51,7 +51,7 @@ from pyMBE.storage.instances.hydrogel import HydrogelInstance
 from pyMBE.simulation_builder.espresso_engine import EspressoSimulation
 from pyMBE.simulation_builder.lammps_engine import LammpsSimulation 
 from pyMBE.simulation_builder.base_engine import DummyEngine
-from pyMBE.simulation_builder.engine_protocol import EspressoSystemProtocol,LammpsProtocol
+from pyMBE.simulation_builder.engine_protocol import EspressoSystemProtocolversion422,EspressoSystemProtocolversion501,LammpsProtocol
 ## Reactions
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 # Utilities
@@ -2768,7 +2768,7 @@ class pymbe_library():
         Raises:
             ValueError: _description_
         """
-        if isinstance(simulation_engine,EspressoSystemProtocol):
+        if isinstance(simulation_engine,EspressoSystemProtocolversion422) or isinstance(simulation_engine,EspressoSystemProtocolversion501):
             self.simulation_engine=EspressoSimulation(box_l=simulation_engine.box_l,
                                                       db=self.db,
                                                       espresso_system=simulation_engine,
