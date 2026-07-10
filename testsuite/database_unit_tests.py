@@ -33,12 +33,23 @@ from pyMBE.storage.templates.angle import AngleTemplate
 from pyMBE.storage.templates.hydrogel import HydrogelNode
 from pyMBE.storage.pint_quantity import PintQuantity
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
+from pydantic.error_wrappers import ValidationError
 import pint
 import numpy as np
 box_l=[10]*3
 espresso_system=espressomd.System(box_l =box_l )
 
 class Test(ut.TestCase):
+    def test_particle_instance_position_is_nparray(self):
+        """Checks that is not possible to instantiate a particle instance with a list it is only possible with a numpy array.
+        """
+        
+        with self.assertRaises(ValidationError) as e:
+            ParticleInstance(name="B",
+                                    particle_id=1,
+                                    initial_state="B",
+                                    position=[box_l[0]*0.5,box_l[1]*0.5,box_l[2]*0.5])
+        
 
     def test_sanity_hydrogel_node_template(self):
         """
@@ -196,7 +207,7 @@ class Test(ut.TestCase):
         pmb.db._register_instance(part_inst)
         pmb.db.delete_instances(pmb_type="particle")
         assert "particle" not in pmb.db._instances.keys()
-        
+    
     def test_find_instance_ids(self):
         """
         Sanity test for `_find_instance_ids_by_attribute`
