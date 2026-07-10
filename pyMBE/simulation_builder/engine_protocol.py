@@ -56,4 +56,13 @@ class EspressoSystemProtocolversion501(Protocol):
 class LammpsProtocol(Protocol):
     """ Class that emulates the structure of the methods employed by Pymbe from the Lammps class
         . The decorator @runtime_checkable allows to only check for the structure not the types"""
-    
+    def display_commands(self):
+        return
+    def setup_lj_interactions(self):
+        return
+    def setup_langevin(self):
+        return
+    def setup_cpH(self):
+        return
+    def run_simulation(self):
+        return
