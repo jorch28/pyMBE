@@ -66,3 +66,30 @@ class LammpsProtocol(Protocol):
         return
     def run_simulation(self):
         return
+
+def is_engine_available(simulation_engine):
+    if simulation_engine == EspressoSystemProtocolversion501:
+        import contextlib
+        with contextlib.suppress(ImportError):
+            import espressomd
+            if espressomd.version.friendly() == "4.2":
+                return False
+            version = espressomd.version.version()
+            return version >= (5, 0, 0) and version < (5, 1, 0)
+        return False
+    if simulation_engine == EspressoSystemProtocolversion422:
+        import contextlib
+        with contextlib.suppress(ImportError):
+            import espressomd
+            version = espressomd.version.friendly()
+            return version == "4.2"
+        return False
+    if simulation_engine == LammpsProtocol:
+        import subprocess
+        try:
+            help_text = subprocess.check_output(["lmp", "-h"])
+        except:
+            return False
+        help_text = "\n".join(help_text.decode().split("\n", 4)[:-1])
+        return "Large-scale Atomic/Molecular Massively Parallel Simulator" in help_text
+    raise NotImplementedError(f'Engine "{simulation_engine}" is not supported')

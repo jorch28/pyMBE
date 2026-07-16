@@ -44,7 +44,7 @@ class Test(ut.TestCase):
         """Checks that is not possible to instantiate a particle instance with a list it is only possible with a numpy array.
         """
         
-        with self.assertRaises(ValidationError) as e:
+        with self.assertRaises(ValidationError):
             ParticleInstance(name="B",
                                     particle_id=1,
                                     initial_state="B",
