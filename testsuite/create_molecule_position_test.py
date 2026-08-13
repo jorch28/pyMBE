@@ -139,8 +139,9 @@ class Test(ut.TestCase):
         particle_id_map = pmb.get_particle_id_map(object_name=molecule_name)
         for pid in particle_id_map["molecule_map"][molecule_ids[0]]:
             np.testing.assert_allclose(
-                espresso_system.part.by_id(pid).pos,
-                pmb.db.get_instance(pmb_type="particle", instance_id=pid).position)
+                np.array(espresso_system.part.by_id(pid).pos, copy=True),
+                np.array(pmb.db.get_instance(pmb_type="particle", instance_id=pid).position,
+                         copy=True))
 
         # Check that center_molecule_in_simulation_box works correctly for non-cubic boxes
         ### New implementation in order to avoid using espresso
@@ -162,8 +163,9 @@ class Test(ut.TestCase):
 
         for pid in particle_id_map["molecule_map"][molecule_ids[2]]:
             np.testing.assert_allclose(
-                espresso_system.part.by_id(pid).pos,
-                pmb.db.get_instance(pmb_type="particle", instance_id=pid).position)
+                np.array(espresso_system.part.by_id(pid).pos, copy=True),
+                np.array(pmb.db.get_instance(pmb_type="particle", instance_id=pid).position,
+                         copy=True))
 
         pmb._delete_particles_from_engine(
             particle_id_map["molecule_map"][molecule_ids[0]] +
