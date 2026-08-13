@@ -30,7 +30,6 @@ import pyMBE
 from pyMBE.lib import analysis
 #Import functions from handy_functions script 
 
-from pyMBE.lib.handy_functions import get_number_of_particles
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -202,7 +201,7 @@ for i in tqdm.trange(N_production_loops, disable=not verbose):
     time_series["time"].append(espresso_system.time)
 
     # Measure degree of ionization
-    number_of_ion_pairs = get_number_of_particles(espresso_system, type_map[cation_name])
+    number_of_ion_pairs = pmb.simulation_engine.get_number_of_particles(type_map[cation_name])
     time_series["c_salt"].append((number_of_ion_pairs/(volume * pmb.N_A)).magnitude)
 
 data_path = args.output

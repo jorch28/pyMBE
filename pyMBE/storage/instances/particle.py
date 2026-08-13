@@ -17,16 +17,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import Literal, Optional,List,Annotated
-import numpy as np
+from typing import Literal, Optional,List
 from numpy.typing import NDArray
 from pydantic import validator
 from ..base_type import PMBBaseModel
-
-def validate_position(position):
-        if not isinstance(position,np.ndarray):
-            raise TypeError("Position has to be a numpy array")
-        return position
 
 class ParticleInstance(PMBBaseModel):
     """
@@ -62,7 +56,7 @@ class ParticleInstance(PMBBaseModel):
     name: str 
     particle_id: int
     initial_state: str
-    position: Annotated[NDArray,validate_position]
+    position: NDArray
     fix: List[bool]=[False,False,False]
     residue_id: Optional[int] = None
     molecule_id: Optional[int] = None

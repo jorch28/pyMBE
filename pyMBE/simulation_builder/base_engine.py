@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2023-2026 pyMBE-dev team
+# Copyright (C) 2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -21,20 +21,18 @@ import numpy as np
 
 class SimulationEngine(ABC):
     """Base Class for simulation engines contains methods """
-    def __init__(self):
+    @abstractmethod
+    def _check_bond_inputs(self):  # pragma: no cover
         pass
     @abstractmethod
-    def _check_bond_inputs(self):
-        return
+    def _create_bond_instance(self):  # pragma: no cover
+        pass
     @abstractmethod
-    def _create_bond_instance(self):
-        return
+    def _get_bond_instance(self):  # pragma: no cover
+        pass
     @abstractmethod
-    def _get_bond_instance(self):
-        return
-    @abstractmethod
-    def add_instances_to_engine(self):
-        return
+    def add_instances_to_engine(self):  # pragma: no cover
+        pass
     def calculate_center_of_mass(self, instance_id, pmb_type):
         """
         Calculates the center of mass of a pyMBE object instance in an ESPResSo system.
@@ -163,6 +161,4 @@ class SimulationEngine(ABC):
 
 class DummyEngine:
     def __getattr__(self, attr):
-        if attr not in self.__dict__:
-            raise RuntimeError('You have not set up any simulation engine yet')
-        return super().__getattr__(attr)
+        raise RuntimeError('You have not set up any simulation engine yet')

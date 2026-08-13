@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import espressomd
 import re
 import json
 import pint
@@ -51,7 +52,7 @@ from pyMBE.storage.instances.hydrogel import HydrogelInstance
 from pyMBE.simulation_builder.espresso_engine import EspressoSimulation
 from pyMBE.simulation_builder.lammps_engine import LammpsSimulation 
 from pyMBE.simulation_builder.base_engine import DummyEngine
-from pyMBE.simulation_builder.engine_protocol import EspressoSystemProtocolversion422,EspressoSystemProtocolversion501,LammpsProtocol
+from pyMBE.simulation_builder.engine_protocol import LammpsProtocol
 ## Reactions
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 # Utilities
@@ -191,36 +192,6 @@ class pymbe_library():
             for pka_name, pka_entry in pka_set.items():
                 if required_key not in pka_entry:
                     raise ValueError(f'missing a required key "{required_key}" in entry "{pka_name}" of pka_set ("{pka_entry}")')
-
-    def _create_espresso_bond_instance(self, bond_type, bond_parameters):
-        """
-        Creates an ESPResSo bond instance.
-
-        Args:
-            bond_type ('str'): 
-                label to identify the potential to model the bond.
-
-            bond_parameters ('dict'): 
-                parameters of the potential of the bond.
-
-        Notes:
-            Currently, only HARMONIC and FENE bonds are supported.
-
-            For a HARMONIC bond the dictionary must contain:
-                - k ('Pint.Quantity')      : Magnitude of the bond. It should have units of energy/length**2 
-                using the 'pmb.units' UnitRegistry.
-                - r_0 ('Pint.Quantity')    : Equilibrium bond length. It should have units of length using 
-                the 'pmb.units' UnitRegistry.
-           
-            For a FENE bond the dictionary must additionally contain:
-                - d_r_max ('Pint.Quantity'): Maximal stretching length for FENE. It should have 
-                units of length using the 'pmb.units' UnitRegistry. Default 'None'.
-
-        Returns:
-            ('espressomd.interactions'): instance of an ESPResSo bond object
-        """
-        bond_instance = self.simulation_engine._create_bond_instance(bond_type,bond_parameters)
-        return bond_instance
 
     def _create_hydrogel_chain(self, hydrogel_chain, nodes,box_l, use_default_bond=False, gen_angle=False):
         """
@@ -378,39 +349,6 @@ class pymbe_library():
         key = self.lattice_builder._get_node_by_label(f"[{node_index[0]} {node_index[1]} {node_index[2]}]")
         self.lattice_builder.nodes[key] = node_name
         return node_position.tolist(), p_id[0]
-
-    def _get_espresso_bond_instance(self, bond_template):
-        """
-        Retrieve or create a bond instance in an ESPResSo system for a given pair of particle names.
-
-        Args:
-            bond_template ('BondTemplate'): 
-                BondTemplate object from the pyMBE database.
-
-        Returns:
-            ('espressomd.interactions.BondedInteraction'): 
-                The ESPResSo bond instance object.
-
-        Notes:
-            When a new bond instance is created, it is not added to the ESPResSo system.
-        """
-        bond_inst=self.simulation_engine._get_bond_instance(bond_template)
-        return bond_inst
-
-    def _get_label_id_map(self, pmb_type):
-        """
-        Returns the key used to access the particle ID map for a given pyMBE object type.
-
-        Args:
-            pmb_type ('str'):
-                pyMBE object type for which the particle ID map label is requested.
-
-        Returns:
-            'str':
-                Label identifying the appropriate particle ID map. 
-        """
-        label=self.db._get_label_id_map(pmb_type=pmb_type)
-        return label
 
     def _get_residue_list_from_sequence(self, sequence):
         """
@@ -1637,31 +1575,6 @@ class pymbe_library():
 
         raise ValueError(f"No angle template found for '{side_name1}-{central_name}-{side_name2}', and default angles are deactivated.")
 
-    def _get_espresso_angle_instance(self, angle_template):
-        """
-        Retrieve or create an angle interaction in an ESPResSo system for a given angle template.
-
-        Args:
-            angle_template ('AngleTemplate'): The angle template to use.
-
-        Returns:
-            ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
-        """
-        return self.simulation_engine._get_angle_instance(angle_template=angle_template)
-
-    def _create_espresso_angle_instance(self, angle_type, angle_parameters):
-        """
-        Creates an ESPResSo angle interaction object.
-
-        Args:
-            angle_type ('str'): Type of angle potential ("harmonic", "cosine", "harmonic_cosine").
-            angle_parameters ('dict'): Parameters of the angle potential (k, phi_0).
-
-        Returns:
-            ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
-        """
-        self.simulation_engine._create_angle_instance(angle_type, angle_parameters)
-
     def _generate_angles_for_entity(self, entity_id, entity_id_col):
         """
         Auto-generates angles from bond topology for an entity (molecule or residue).
@@ -2706,7 +2619,7 @@ class pymbe_library():
             box_l('list[float,float,float]'): list of floats with the dimensions of the box
         """
 
-        if isinstance(simulation_engine,EspressoSystemProtocolversion422) or isinstance(simulation_engine,EspressoSystemProtocolversion501):
+        if isinstance(simulation_engine, espressomd.System):
             self.simulation_engine=EspressoSimulation(box_l=simulation_engine.box_l,
                                                       db=self.db,
                                                       espresso_system=simulation_engine,

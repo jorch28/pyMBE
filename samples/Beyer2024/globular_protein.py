@@ -28,7 +28,7 @@ import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
 
 #Import functions from handy_functions script 
-from pyMBE.lib.handy_functions import do_reaction, define_protein_AA_particles, define_protein_AA_residues
+from pyMBE.lib.handy_functions import define_protein_AA_particles, define_protein_AA_residues
 from pyMBE.lib import analysis
 # Here you can adjust the width of the panda columns displayed when running the code 
 pd.options.display.max_colwidth = 10
@@ -320,7 +320,7 @@ for amino in list_ionisable_groups:
 
 for step in tqdm.trange(N_samples, disable=not verbose):
     espresso_system.integrator.run (steps = integ_steps)
-    do_reaction(cpH, steps=total_ionisable_groups)
+    pmb.simulation_engine.do_reaction(cpH, steps=total_ionisable_groups)
     protein_net_charge = pmb.calculate_net_charge(
                                                 object_name=protein_name,
                                                 pmb_type="protein",

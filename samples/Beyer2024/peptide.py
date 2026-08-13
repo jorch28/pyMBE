@@ -26,7 +26,7 @@ import tqdm
 # Import pyMBE
 import pyMBE
 from pyMBE.lib import analysis
-from pyMBE.lib.handy_functions import do_reaction, define_peptide_AA_residues
+from pyMBE.lib.handy_functions import define_peptide_AA_residues
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -224,7 +224,7 @@ for sample in tqdm.trange(Nsamples,disable=not verbose):
     # Run LD
     espresso_system.integrator.run(steps=MD_steps_per_sample)
     # Run MC
-    do_reaction(cpH, steps=len(sequence))
+    pmb.simulation_engine.do_reaction(cpH, steps=len(sequence))
     # Sample observables
     charge_dict=pmb.calculate_net_charge(
                                         object_name=sequence,

@@ -21,14 +21,10 @@ import numpy as np
 import pathlib
 import pyMBE
 import pyMBE.lib.handy_functions as hf
-from pyMBE.simulation_builder.engine_protocol import is_engine_available,EspressoSystemProtocolversion422,EspressoSystemProtocolversion501
 
 mode="short" # Supported modes: "short", "long"
 pH_samples=25 # If more through testing is needed, set to 200
 
-@ut.skipIf(not is_engine_available(EspressoSystemProtocolversion501) and
-           not is_engine_available(EspressoSystemProtocolversion422),
-           "ESPResSo engine is unavailable")
 class Test(ut.TestCase):
     data_root = pathlib.Path(__file__).parent / "henderson_hasselbalch_tests_data"
 

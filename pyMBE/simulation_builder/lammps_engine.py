@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2023-2026 pyMBE-dev team
+# Copyright (C) 2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -20,19 +20,42 @@ from pyMBE.simulation_builder.base_engine import SimulationEngine
 
 
 class LammpsSimulation(SimulationEngine):
-    def __init__(self):
-        pass
+    def __init__(self, box_l=None, db=None, lammps=None, units=None,
+                 kT=None, Kw=None, seed=None):
+        self.box_l = box_l
+        self.db = db
+        self.lammps = lammps
+        self.units = units
+        self.kT = kT
+        self.Kw = Kw
+        self.seed = seed
+
+    def display_commands(self, *args, **kwargs):
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+
+    def setup_lj_interactions(self, *args, **kwargs):
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+
+    def setup_langevin(self, *args, **kwargs):
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+
+    def setup_cpH(self, *args, **kwargs):
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+
+    def run_simulation(self, *args, **kwargs):
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+
     def __getattr__(self, attr):
         raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
-    def _add_angle(self):
-        return
-    def _check_bond_inputs(self):
-        return
-    def _create_bond_instance(self):
-        return
-    def _get_bond_instance(self):
-        return
-    def add_instances_to_engine(self):
-        return
+    def _add_angle(self): # pragma: no cover
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+    def _check_bond_inputs(self): # pragma: no cover
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
     
-    
+    def _create_bond_instance(self): # pragma: no cover
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+    def _get_bond_instance(self): # pragma: no cover
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+    def add_instances_to_engine(self): # pragma: no cover
+        raise NotImplementedError('Lammps Simulation Engine is not yet implemented')
+

@@ -16,11 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
 import re
 import numpy as np
 import scipy
-from pyMBE.exceptions.pmb_warnings import deprecated
 
 def calculate_initial_bond_length(bond_parameters, bond_type, lj_parameters):
     """
@@ -282,68 +280,6 @@ def define_peptide_AA_residues(sequence,model, pmb):
             pmb.define_residue(name = residue_name, 
                                     central_bead = central_bead,
                                     side_chains = side_chains)
-@deprecated('pmb.simulation_engine.do_reaction')
-def do_reaction(algorithm, steps):
-    """
-    Executes reaction steps using an ESPResSo reaction algorithm with
-    version-compatible calling semantics.
-
-    This function wraps the `reaction` method of an ESPResSo reaction
-    algorithm to account for differences in the method signature between
-    ESPResSo versions.
-
-    Args:
-        algorithm ('espressomd.reaction_methods'):
-            ESPResSo reaction algorithm object (e.g. constant pH,
-            reaction ensemble, or similar).
-        steps ('int'):
-            Number of reaction steps to perform.
-
-    Notes:
-        - In ESPResSo 4.2, the `reaction` method expects the number of steps
-          to be passed as the keyword argument `reaction_steps`.
-        - In newer ESPResSo versions, the keyword argument is `steps`.
-        - This helper function provides a stable interface across ESPResSo
-          versions by dispatching to the appropriate keyword internally.
-    """
-    import espressomd.version
-    if espressomd.version.friendly() == '4.2':
-        algorithm.reaction(reaction_steps=steps)
-    else:
-        algorithm.reaction(steps=steps)
-
-@deprecated('pmb.simulation_engine.get_number_of_particles')
-def get_number_of_particles(espresso_system, ptype):
-    """
-    Returns the number of particles of a given ESPResSo particle type.
-
-    Args:
-        espresso_system ('espressomd.system.System'):
-            ESPResSo system object from which the particle count is queried.
-        ptype ('int'):
-            ESPResSo particle type identifier.
-
-    Returns:
-        ('int'):
-            Number of particles in `espresso_system` with particle type `ptype`.
-
-    Notes:
-        - In ESPResSo 4.2, `number_of_particles` expects the particle type
-          as a positional argument.
-        - In later ESPResSo versions, the particle type must be passed as a
-          keyword argument (`type=ptype`).
-        - This helper function hides these API differences and provides
-          a uniform interface across ESPResSo versions.
-    """
-    import espressomd.version
-    if espressomd.version.friendly() == "4.2":
-        args = (ptype,)
-        kwargs = {}
-    else:
-        args = ()
-        kwargs = {"type": ptype}
-    return espresso_system.number_of_particles(*args, **kwargs)
-
 def get_residues_from_topology_dict(topology_dict, model):
     """
     Groups beads from a topology dictionary into residues and assigns residue names.
@@ -509,67 +445,3 @@ def protein_sequence_parser(sequence):
                     raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
             clean_sequence.append(residue_ok)
     return clean_sequence
-
-@deprecated('pmb.simulation_engine.relax_system')
-def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_descent=5000, max_displacement=0.01, Nsteps_iter_relax=500):
-    """
-    Relaxes the energy of the given ESPResSo system by performing the following steps:
-    (1) Steepest descent energy minimization, to remove large forces and relax the system to a local minimum.
-    (2) A Langevin Dynamics run, to further relax the system and ensure that it is in thermal equilibrium.
-
-    This function is useful to avoid code repetition in the sample scripts of pyMBE, but it is by no means general-purpose.
-    Similarly, the default parameters are not universal and should be adapted to the specific system at hand.
-    In general, system relaxation is a complex procedure and should be adapted for each particular application.
-    If you experience crashes or unexpected behavior, please consider using your own relaxation procedure.
-
-    Args:
-        espresso_system (`espressomd.system.System`): 
-            system object of espressomd library.
-
-        seed (`int`): 
-            Seed for the random number generator for the thermostat.
-
-        gamma (`float`, optional): 
-            Starting damping constant for Langevin dynamics. Defaults to  1e-3 reduced time**-1.
-
-        Nsteps_steepest_descent (`int`, optional): 
-            Total number of steps for steepest descent minimization. Defaults to 5000.
-
-        max_displacement (`float`, optional): 
-            Maximum particle displacement allowed during minimization. Defaults to 0.01 reduced length.
-
-        Nsteps_iter_relax (`int`, optional): 
-            Number of steps per iteration for Langevin dynamics relaxation. Defaults to 500.
-
-    Return:
-        (`float`): 
-            minimum distance between particles in the system after the relaxation
-
-    Notes:
-        - The thermostat is turned off by the end of the procedure. 
-        - Make sure the system is initialized properly before calling this function.
-    """
-    # Sanity checks
-    if gamma <= 0:
-        raise ValueError("The damping constant 'gamma' must be positive.")
-    if Nsteps_steepest_descent <= 0 or Nsteps_iter_relax <= 0:
-        raise ValueError("Step counts must be positive integers.")
-    if max_displacement <= 0:
-        raise ValueError("'max_displacement' must be positive.")
-    logging.debug("*** Relaxing the energy of the system... ***")
-    logging.debug("*** Starting steepest descent minimization ***")
-    espresso_system.thermostat.turn_off()
-    espresso_system.integrator.set_steepest_descent(f_max=0,
-                                                    gamma=gamma, 
-                                                    max_displacement=max_displacement)
-    espresso_system.integrator.run(Nsteps_steepest_descent)
-    logging.debug("*** Finished steepest descent minimization ***")
-    logging.debug("*** Starting Langevin Dynamics relaxation ***")
-    espresso_system.integrator.set_vv()
-    espresso_system.thermostat.set_langevin(kT=1., gamma=gamma, seed=seed)
-    espresso_system.integrator.run(Nsteps_iter_relax)
-    espresso_system.thermostat.turn_off()
-    logging.debug("*** Finished Langevin Dynamics relaxation ***")
-    logging.info(f"*** Minimum particle distance after relaxation: {espresso_system.analysis.min_dist()} ***")
-    logging.debug("*** Relaxation finished ***")
-    return espresso_system.analysis.min_dist()

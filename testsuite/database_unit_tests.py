@@ -40,6 +40,13 @@ box_l=[10]*3
 espresso_system=espressomd.System(box_l =box_l )
 
 class Test(ut.TestCase):
+    def test_label_id_map(self):
+        pmb = pyMBE.pymbe_library(seed=23)
+
+        self.assertEqual(pmb.db._get_label_id_map("particle"), "particle_map")
+        self.assertEqual(pmb.db._get_label_id_map("molecule"), "molecule_map")
+        self.assertEqual(pmb.db._get_label_id_map("hydrogel"), "assembly_map")
+
     def test_particle_instance_position_is_nparray(self):
         """Checks that is not possible to instantiate a particle instance with a list it is only possible with a numpy array.
         """

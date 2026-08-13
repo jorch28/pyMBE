@@ -37,7 +37,6 @@ from pyMBE.lib import analysis
 pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convenience
-from pyMBE.lib.handy_functions import do_reaction
 
 
 #######################################################
@@ -234,7 +233,7 @@ if verbose:
     print("Running warmup without electrostatics")
 for i in tqdm.trange(100, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    do_reaction(grxmc, steps=1000)
+    pmb.simulation_engine.do_reaction(grxmc, steps=1000)
 
 pmb.simulation_engine.setup_electrostatic_interactions(units=pmb.units,
                                 kT=pmb.kT,
@@ -258,7 +257,7 @@ else:
     N_warmup_loops = 100
 for i in tqdm.trange(N_warmup_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    do_reaction(grxmc, steps=100)
+    pmb.simulation_engine.do_reaction(grxmc, steps=100)
 
 # Main loop
 print("Started production run.")
@@ -274,7 +273,7 @@ else:
     N_production_loops = 100
 for i in tqdm.trange(N_production_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    do_reaction(grxmc, steps=100)
+    pmb.simulation_engine.do_reaction(grxmc, steps=100)
     # Measure time
     time_series["time"].append(espresso_system.time)
     # Measure degree of ionization

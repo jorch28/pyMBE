@@ -262,6 +262,44 @@ class Test(ut.TestCase):
                                            pmb_type="particle")
         pmb.db.delete_templates(pmb_type="bond")
 
+    def test_engine_check_bond_inputs(self):
+        """Test bond validation after migration to the ESPResSo engine."""
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
+        pmb.set_simulation_engine(espresso_system)
+        engine = pmb.simulation_engine
+
+        engine._check_bond_inputs(
+            bond_type="harmonic", bond_parameters=self.harmonic_params)
+        engine._check_bond_inputs(
+            bond_type="FENE", bond_parameters=self.FENE_params)
+
+        with self.assertRaises(NotImplementedError):
+            engine._check_bond_inputs(
+                bond_type="Quartic", bond_parameters=self.harmonic_params)
+
+        with self.assertRaises(ValueError):
+            engine._check_bond_inputs(
+                bond_type="harmonic",
+                bond_parameters={"k": self.harmonic_params["k"]})
+        with self.assertRaises(ValueError):
+            engine._check_bond_inputs(
+                bond_type="harmonic",
+                bond_parameters={"r_0": self.harmonic_params["r_0"]})
+
+        with self.assertRaises(ValueError):
+            engine._check_bond_inputs(
+                bond_type="FENE",
+                bond_parameters={
+                    "r_0": self.FENE_params["r_0"],
+                    "d_r_max": self.FENE_params["d_r_max"]})
+        with self.assertRaises(ValueError):
+            engine._check_bond_inputs(
+                bond_type="FENE",
+                bond_parameters={
+                    "r_0": self.FENE_params["r_0"],
+                    "k": self.FENE_params["k"]})
+
     def test_bond_raised_exceptions(self):
         pmb = pyMBE.pymbe_library(seed=42)
         self.define_templates(pmb)

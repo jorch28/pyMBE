@@ -267,7 +267,7 @@ class Test(ut.TestCase):
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
-    def test_get_espresso_angle_instance_reuses_cached_object(self):
+    def test_angle_instance_reuses_cached_object(self):
         """
         Test that cached ESPResSo angle interactions are reused for the same template.
         """
@@ -284,8 +284,8 @@ class Test(ut.TestCase):
         
         pmb.set_simulation_engine(espresso_system)
         print(espresso_system,"espresso_system")
-        first_angle_object = pmb._get_espresso_angle_instance(angle_template=angle_template)
-        second_angle_object = pmb._get_espresso_angle_instance(angle_template=angle_template)
+        first_angle_object = pmb.simulation_engine._get_angle_instance(angle_template=angle_template)
+        second_angle_object = pmb.simulation_engine._get_angle_instance(angle_template=angle_template)
 
         self.assertIs(first_angle_object, second_angle_object)
         self.assertEqual(len(pmb.db.espresso_angle_instances), 1)

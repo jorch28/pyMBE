@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2023-2026 pyMBE-dev team
+# Copyright (C) 2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -98,20 +98,6 @@ class EspressoSimulation(SimulationEngine):
                                     pmb_type='particle',
                                     attribute='added_to_engine',
                                     value=True)
-
-            
-    def _check_particle_exists_in_espresso(self,particle_id):
-        """
-        Checks the existance of a particle_id in a espresso_system instance.
-
-        Args:
-            particle_id (int): pid of the particle that we want to check that exists within ESPResSo
-
-        Returns:
-            particle_exists(bool): result of the espresso_exists function
-        """
-        particle_exists=self.espresso_system.exists(particle_id)
-        return particle_exists
     
     def _check_bond_inputs(self, bond_type, bond_parameters):
         """
