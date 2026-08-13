@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Removed
-- Deprecated legacy ESPResSo-specific helper functions in favor of the corresponding pmb.simulation_engine.* methods, including reaction execution, particle counting, system relaxation, Langevin dynamics setup, and electrostatic-interaction setup.
+- Deprecated legacy ESPResSo-specific helper functions in favor of the corresponding `pmb.simulation_engine.*` methods, including reaction execution, particle counting, system relaxation, Langevin dynamics setup, and electrostatic-interaction setup.
 - Methods that interact directly with the pyMBE dataframe. These methods have been replaced by private methods that instead interact with the new canonical pyMBE database in (`pyMBE/storage/manager`). This includes the methods: `add_bond_in_df`, `add_value_to_df`, `assign_molecule_id`, `check_if_df_cell_has_a_value`, `check_if_name_is_defined_in_df`, `check_if_multiple_pmb_types_for_name`, `clean_df_row`, `clean_ids_in_df_row`, `copy_df_entry`, `create_variable_with_units`, `convert_columns_to_original_format`, `convert_str_to_bond_object`, `delete_entries_in_df`, `find_bond_key`, `setup_df`, `define_particle_entry_in_df`, custom `NumpyEncoder`. (#145,#147)
 - Method `add_bonds_to_espresso` has been removed from the API. pyMBE now adds bonds internally to ESPResSo when molecule instances are created into ESPResSo. (#147)
 - Tutorial `lattice_builder.ipynb` has been removed because its content is redundant with sample script `build_hydrogel.py`. (#147)

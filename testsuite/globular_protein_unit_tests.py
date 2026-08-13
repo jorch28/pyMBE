@@ -42,13 +42,11 @@ for key in ref_sequence:
     ref_residue_list.append(f"AA-{key}")
 
 
-
 class Test(ut.TestCase):
     def test_protein_setup(self):
         """
         Unit tests for setting up globular proteins in pyMBE.
         """
-        
         def custom_deserializer(dct):
             if "value" in dct and "unit" in dct:
                 return pmb.units.Quantity(dct["value"], dct["unit"])  
@@ -106,10 +104,6 @@ class Test(ut.TestCase):
         np.testing.assert_raises(ValueError, 
                                  pmb.define_protein, 
                                  **input_parameters)
-        
-        
-        
-
         with self.assertRaises(ValueError):
             pmb.create_protein(name="missing_protein_template",
                                number_of_proteins=1,

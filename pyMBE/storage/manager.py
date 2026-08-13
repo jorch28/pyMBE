@@ -252,7 +252,7 @@ class Manager:
             if name in group:
                 found.append(pmb_type)
         return found
-    
+
 
     def _get_instances_df(self, pmb_type):
         """

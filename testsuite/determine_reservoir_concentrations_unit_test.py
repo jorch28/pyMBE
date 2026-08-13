@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Import pyMBE and other libraries
 import pyMBE
 import numpy as np
 import pandas as pd
@@ -30,8 +29,6 @@ pmb.set_simulation_engine(espresso_system)
 
 def determine_reservoir_concentrations_test_ideal(pH_res, c_salt_res):
 
-    # Create an instance of the pyMBE library
-    
     # Determine the reservoir composition using pyMBE
     cH_res_pyMBE, cOH_res_pyMBE, cNa_res_pyMBE, cCl_res_pyMBE = pmb.determine_reservoir_concentrations(
             pH_res,

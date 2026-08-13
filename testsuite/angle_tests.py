@@ -281,9 +281,8 @@ class Test(ut.TestCase):
         angle_template = pmb.get_angle_template(side_name1="A",
                                                 central_name="B",
                                                 side_name2="C")
-        
+
         pmb.set_simulation_engine(espresso_system)
-        print(espresso_system,"espresso_system")
         first_angle_object = pmb.simulation_engine._get_angle_instance(angle_template=angle_template)
         second_angle_object = pmb.simulation_engine._get_angle_instance(angle_template=angle_template)
 
@@ -510,7 +509,7 @@ class Test(ut.TestCase):
 
         # Create three particles without any bonds between them
         pid_A = pmb.create_particle(name="A",
-                                     box_l=box_l,
+                                    box_l=box_l,
                                     number_of_particles=1)
         pid_B = pmb.create_particle(name="B",
                                     box_l=box_l,
@@ -612,7 +611,7 @@ class Test(ut.TestCase):
         pid_C = pmb.create_particle(name="C",
                                    box_l=box_l,
                                     number_of_particles=1)
-        
+
         for particle_id in (pid_A[0], pid_B[0], pid_C[0]):
             pmb.db._update_instance(instance_id=particle_id,
                                     pmb_type="particle",
@@ -660,7 +659,7 @@ class Test(ut.TestCase):
         pid_C = pmb.create_particle(name="C",
                                      box_l=box_l,
                                     number_of_particles=1)
-       
+
         for particle_id in (pid_A[0], pid_B[0], pid_C[0]):
             pmb.db._update_instance(instance_id=particle_id,
                                     pmb_type="particle",

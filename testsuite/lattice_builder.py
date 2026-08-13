@@ -121,7 +121,7 @@ class Test(ut.TestCase):
         define_templates(pmb=pmb)
         # --- Invalid low-level operations ---
         with self.assertRaises(ValueError):
-            pmb._create_hydrogel_node("[1 1 1]", NodeType1,box_l=box_l)
+            pmb._create_hydrogel_node("[1 1 1]", NodeType1, box_l=box_l)
 
         with self.assertRaises(ValueError):
             pmb._create_hydrogel_chain(
@@ -154,9 +154,6 @@ class Test(ut.TestCase):
         # untouched nodes remain default
         np.testing.assert_equal(lattice.get_node("[2 2 0]"), "default_linker")
         np.testing.assert_equal(lattice.get_node("[3 1 3]"), "default_linker")
-       
-        # Clean espresso system
-        # espresso_system.part.clear()
 
         pmb2 = pyMBE.pymbe_library(23)
         define_templates(pmb=pmb2)

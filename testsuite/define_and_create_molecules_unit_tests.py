@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Import pyMBE and other libraries
 import pyMBE
 import numpy as np
 import espressomd
@@ -159,10 +158,8 @@ class Test(ut.TestCase):
                                 number_of_particles=1)
             
         # If no particles have been created, only two particles should be in the system (from the previous test)
-        
         self.assertEqual(first=len(espresso_system.part.all()), 
                                 second=starting_number_of_particles)
-        
 
         # Unit tests for delete particle
         starting_number_of_particles=len(espresso_system.part.all())
@@ -265,7 +262,6 @@ class Test(ut.TestCase):
 
         bonded_pairs=[]
         bond_df = pmb.get_instances_df(pmb_type="bond")
-        
 
         for bond_index in bond_df.index:
             particle_id1= bond_df.loc[bond_index,"particle_id1"]
