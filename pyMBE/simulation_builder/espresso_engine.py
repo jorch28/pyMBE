@@ -273,6 +273,19 @@ class EspressoSimulation(SimulationEngine):
         """
         return self.espresso_system.part.by_id(id).pos
     
+    def _update_particle_position(self, particle_id, position):
+        """
+        Updates the position of a particle already stored in ESPResSo.
+
+        Args:
+            particle_id ('int'):
+                ESPResSo particle ID to update.
+
+            position ('array-like'):
+                New Cartesian coordinates of the particle.
+        """
+        self.espresso_system.part.by_id(particle_id).pos = position
+
     def get_box_side_length(self):
         """
         Gets the dimensions of the simulation box used in the simulation engine.

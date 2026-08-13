@@ -19,6 +19,7 @@
 import espressomd
 import pyMBE
 import unittest as ut
+import numpy as np
 
 pmb = pyMBE.pymbe_library(seed=42)
 
@@ -117,8 +118,8 @@ class Test(ut.TestCase):
                                            box_l=box_l,
                                            use_default_bond=True,
                                            list_of_first_residue_positions = pos_list)
-        
-        
+        pmb.add_instances_to_engine()
+
         # Check that center_molecule_in_simulation_box works correctly for cubic boxes
 
         pmb.center_object_in_simulation_box(instance_id=molecule_ids[0], 
@@ -133,9 +134,15 @@ class Test(ut.TestCase):
         center_of_mass_ref = [L/2]*3
 
         for ind in range(len(center_of_mass)):
-            self.assertAlmostEqual(center_of_mass[ind], 
+            self.assertAlmostEqual(center_of_mass[ind],
                                 center_of_mass_ref[ind])
-        #Check that center_molecule_in_simulation_box works correctly for non-cubic boxes
+        particle_id_map = pmb.get_particle_id_map(object_name=molecule_name)
+        for pid in particle_id_map["molecule_map"][molecule_ids[0]]:
+            np.testing.assert_allclose(
+                espresso_system.part.by_id(pid).pos,
+                pmb.db.get_instance(pmb_type="particle", instance_id=pid).position)
+
+        # Check that center_molecule_in_simulation_box works correctly for non-cubic boxes
         ### New implementation in order to avoid using espresso
         # espresso_system.change_volume_and_rescale_particles(d_new=3*L, dir="z")
 
@@ -150,8 +157,18 @@ class Test(ut.TestCase):
  
         center_of_mass_ref = [L/2, L/2, 1.5*L]
         for ind in range(len(center_of_mass)):
-            self.assertAlmostEqual(center_of_mass[ind], 
+            self.assertAlmostEqual(center_of_mass[ind],
                                 center_of_mass_ref[ind])
+
+        for pid in particle_id_map["molecule_map"][molecule_ids[2]]:
+            np.testing.assert_allclose(
+                espresso_system.part.by_id(pid).pos,
+                pmb.db.get_instance(pmb_type="particle", instance_id=pid).position)
+
+        pmb._delete_particles_from_engine(
+            particle_id_map["molecule_map"][molecule_ids[0]] +
+            particle_id_map["molecule_map"][molecule_ids[1]] +
+            particle_id_map["molecule_map"][molecule_ids[2]])
 
     def test_sanity_center_object_in_simulation_box(self):
         """

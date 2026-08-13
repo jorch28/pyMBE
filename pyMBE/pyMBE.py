@@ -664,6 +664,9 @@ class pymbe_library():
                                      pmb_type='particle',
                                      attribute='position',
                                      value=centered_position)
+            if isinstance(self.simulation_engine, EspressoSimulation):
+                self.simulation_engine._update_particle_position(
+                    particle_id=pid, position=centered_position)
 
     def create_added_salt(self, box_l, cation_name, anion_name, c_salt):    
         """

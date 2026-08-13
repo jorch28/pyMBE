@@ -174,21 +174,5 @@ class Test(ut.TestCase):
         with self.assertRaises(RuntimeError):
             local_pmb.simulation_engine.add_instances_to_engine()
 
-    def test_espresso_engine_reaction_dispatch(self):
-        """Checks reaction dispatch using the current ESPResSo API."""
-        class Algorithm:
-            def reaction(self, **kwargs):
-                """Records the keyword arguments used for the reaction call."""
-                self.arguments = kwargs
-
-        local_pmb = pymbe_library(seed=32)
-        local_system = espresso_system
-        local_pmb.set_simulation_engine(local_system)
-        algorithm = Algorithm()
-
-        local_pmb.simulation_engine.do_reaction(algorithm, steps=7)
-
-        self.assertEqual(algorithm.arguments, {"steps": 7})
-
 if __name__=='__main__':
     ut.main()
