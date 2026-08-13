@@ -28,11 +28,6 @@ from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 from pyMBE.storage.templates.lj import LJInteractionTemplate
 from pyMBE.storage.pint_quantity import PintQuantity
 
-
-
-
-
-
 class EspressoSimulation(SimulationEngine):
     def __init__(self,box_l,db,espresso_system,units,kT,Kw,seed):
         self.db=db
@@ -45,8 +40,8 @@ class EspressoSimulation(SimulationEngine):
         pass
 
     def _add_angle(self,particle_id1,particle_id2,particle_id3, angle_inst):
-        """ helper function to add angle instances to espresso
-
+        """ 
+        Helper function to add angle instances to ESPResSo.
 
         Args:
             particle_id1 (int): pid of the particle instance 1 that composes the angle 
@@ -65,7 +60,8 @@ class EspressoSimulation(SimulationEngine):
                                     value=True)
         
     def _add_bond(self,particle_id1,particle_id2,bond_inst):
-        """helper function to add bond instances to espresso
+        """
+        Helper function to add bond instances to ESPResSo.
 
         Args:
             particle_id1 (int): pid of the particle instance 1 that composes the bond 
@@ -82,7 +78,8 @@ class EspressoSimulation(SimulationEngine):
                                     value=True)
     
     def _add_particle(self,particle_id):
-        """helper function to add particle instances to espresso
+        """
+        Helper function to add particle instances to ESPResSo
 
         Args:
             particle_id (int): pid of the particle instance
@@ -105,10 +102,10 @@ class EspressoSimulation(SimulationEngine):
             
     def _check_particle_exists_in_espresso(self,particle_id):
         """
-            Checks the existance of a particle_id in a espresso_system instance.
+        Checks the existance of a particle_id in a espresso_system instance.
 
         Args:
-            particle_id (int): pid of the particle that we want to check that exists within espresso
+            particle_id (int): pid of the particle that we want to check that exists within ESPResSo
 
         Returns:
             particle_exists(bool): result of the espresso_exists function
@@ -269,10 +266,10 @@ class EspressoSimulation(SimulationEngine):
     
     def _get_particle_ids_in_espresso(self):
         """
-            Gets a list of all the particles_id in espresso_system instance.
+        Gets a list of all the particles_id in espresso_system instance.
         
         Returns:
-            espresso_particles_id(list): list of pids of the particles that are saved in espresso
+            espresso_particles_id(list): list of pids of the particles that are saved in ESPResSo
         """
         espresso_particles=self.espresso_system.part.all()
         return espresso_particles.id    
@@ -280,18 +277,20 @@ class EspressoSimulation(SimulationEngine):
     
     def _get_particle_pos_espresso(self,id):
         """
-            Gets the particle position of 
+        Gets the position of particle with `id` in ESPResSo.
+
         Args:
-            id (int): pid of the particle that we want to check that exists within espresso
+            id (int): pid of the particle that we want to check that exists within ESPResSo.
 
         Returns:
-            espresso_particles_id(List[List[float,float,float]]): returns a nested list of floats containing x,y,z coordinates for each particle in espresso
+            espresso_particles_id(List[List[float,float,float]]): returns a nested list of floats containing x,y,z coordinates for each particle in ESPResSo
         """
         return self.espresso_system.part.by_id(id).pos
     
     def get_box_side_length(self):
-        """_summary_
-
+        """
+        Gets the dimensions of the simulation box used in the simulation engine.
+        
         Returns:
             box_l(list[float,float,float]): return a list of floats regarding the dimensions of the box
         """
@@ -338,8 +337,9 @@ class EspressoSimulation(SimulationEngine):
     
     def change_volume_and_rescale_particles(self, d_new, dir="xyz"):
         """
-        Change the volume for a particular dimension into the espresso system.
-        args:
+        Change the volume for a particular dimension into the ESPResSo system.
+
+        Args:
             d_new(float): new value for the dimension
             dir(Literal[x,y,z]): coordinate in which to set the new dimension. 
         
@@ -366,7 +366,6 @@ class EspressoSimulation(SimulationEngine):
             
         self.espresso_system.change_volume_and_rescale_particles(d_new=d_new,
                                                                  dir=dir)
-        return
     
     
     def do_reaction(self,algorithm, steps):
@@ -1468,6 +1467,4 @@ class EspressoSimulation(SimulationEngine):
                                particle_id2,
                                particle_id3,
                                angle_instance)
-       
-        return 
     

@@ -191,7 +191,6 @@ class pymbe_library():
             for pka_name, pka_entry in pka_set.items():
                 if required_key not in pka_entry:
                     raise ValueError(f'missing a required key "{required_key}" in entry "{pka_name}" of pka_set ("{pka_entry}")')
-        return
 
     def _create_espresso_bond_instance(self, bond_type, bond_parameters):
         """
@@ -296,15 +295,11 @@ class pymbe_library():
                                       use_default_bond=use_default_bond,
                                       reverse_residue_order=reverse_residue_order,
                                       gen_angle=gen_angle)[0]
-        # Bond chain to the hydrogel nodes
-        ### The following implementation belongs to espresso engine
         chain_pids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                              attribute="molecule_id",
                                                              value=mol_id)
-
         self.create_bond(particle_id1=start_node_id,particle_id2=chain_pids[0],use_default_bond=use_default_bond)
         self.create_bond(particle_id1=chain_pids[-1],particle_id2=end_node_id,use_default_bond=use_default_bond)
-
         return mol_id
 
     def _generate_hydrogel_crosslinker_angles(self,  central_particle_ids):
@@ -341,31 +336,19 @@ class pymbe_library():
                                      angle_key))
 
         defined_angle_templates = self.db.get_templates(pmb_type="angle")
-        defined_angle_keys = {
-            angle_key
-            for _, _, _, angle_key in triplets
-            if angle_key in defined_angle_templates
-        }
+        defined_angle_keys = {angle_key for _, _, _, angle_key in triplets if angle_key in defined_angle_templates}
         if not defined_angle_keys:
             logging.warning("No angle templates defined for hydrogel crosslinkers")
             return
-
-        missing_angle_keys = sorted({
-            angle_key
-            for _, _, _, angle_key in triplets
-            if angle_key not in defined_angle_keys
-        })
+        missing_angle_keys = sorted({angle_key for _, _, _, angle_key in triplets if angle_key not in defined_angle_keys})
         if missing_angle_keys:
-            raise ValueError(
-                "Hydrogel crosslinker-adjacent angle templates must be defined for all required triplets. "
-                f"Missing definitions for: {missing_angle_keys}"
-            )
-
+            raise ValueError("Hydrogel crosslinker-adjacent angle templates must be defined for all required triplets. "
+                             f"Missing definitions for: {missing_angle_keys}")
         for side_particle_id1, central_particle_id, side_particle_id3, _ in triplets:
             self.create_angular_potential(particle_id1=side_particle_id1,
-                              particle_id2=central_particle_id,
-                              particle_id3=side_particle_id3,
-                              use_default_angle=False)
+                                          particle_id2=central_particle_id,
+                                          particle_id3=side_particle_id3,
+                                          use_default_angle=False)
 
     def _create_hydrogel_node(self, node_index, node_name,box_l):
         """
@@ -463,7 +446,7 @@ class pymbe_library():
             ('str'): 
                 Resolved pmb_type.
 
-        Notess:
+        Notes:
             - This method does *not* return the template itself, only the validated pmb_type. 
         """
         registered_pmb_types_with_name = self.db._find_template_types(name=name)
@@ -482,15 +465,13 @@ class pymbe_library():
             particle_ids  ('Iterable[int]'):
                 A list (or other iterable) of ESPResSo particle IDs to remove.
 
-        Notess:
+        Notes:
             - This method removes particles only from the ESPResSo simulation,
             **not** from the pyMBE database. Database cleanup must be handled
             separately by the caller.
             - Attempting to remove a non-existent particle ID will raise
             an ESPResSo error.
         """
-        # for pid in particle_ids:
-        #     espresso_system.part.by_id(pid).remove()
         self.simulation_engine._delete_particles(particle_ids)
 
     def add_instances_to_engine(self):
@@ -518,14 +499,9 @@ class pymbe_library():
             - Periodic boundary conditions are *not* unfolded; positions are taken
             directly from ESPResSo particle coordinates.
         """
-        if isinstance(self.simulation_engine,EspressoSimulation):
-            center_of_mass=self.simulation_engine.calculate_center_of_mass(instance_id=instance_id,
-                                                            pmb_type=pmb_type)
-        elif isinstance(self.simulation_engine,LammpsSimulation):
-            raise NotImplementedError('In this version it has not yet been implemented this method for LammpsSimulation engine')
-        else:
-            raise RuntimeError('Please set a currently working simulation engine')
-        return center_of_mass
+        return self.simulation_engine.calculate_center_of_mass(instance_id=instance_id,
+                                                               pmb_type=pmb_type)
+    
     def calculate_HH(self, template_name, pH_list=None, pka_set=None):
         """
         Calculates the charge in the template object according to the ideal  Henderson–Hasselbalch titration curve.
@@ -711,13 +687,10 @@ class pymbe_library():
             dict:
                 {"mean": mean_net_charge, "instances": {instance_id: net_charge}}
         """
-        if isinstance(self.simulation_engine,EspressoSimulation):
-            net_charge=self.simulation_engine.calculate_net_charge(object_name,pmb_type,dimensionless)
-        elif isinstance(self.simulation_engine,LammpsSimulation):
-            raise NotImplementedError('In this version this method is only implemented with espresso')
-        else:
-            raise RuntimeError('Please set a currently working simulation engine')
-        return net_charge
+        return self.simulation_engine.calculate_net_charge(object_name,
+                                                           pmb_type,
+                                                           dimensionless)
+    
     def center_object_in_simulation_box(self, instance_id, box_l,pmb_type):
         """
         Centers a pyMBE object instance in the simulation box of an ESPResSo system.
@@ -744,7 +717,6 @@ class pymbe_library():
                       box_l[1]/2.0,
                       box_l[2]/2.0]
         particle_id_list = self.get_particle_id_map(object_name=inst.name)["all"]
-        print(particle_id_list,"particle_id_list")
         for pid in particle_id_list:
             es_pos=self.db.get_instance(instance_id=pid,
                                     pmb_type='particle').position
@@ -837,9 +809,6 @@ class pymbe_library():
         bond_tpl = self.get_bond_template(particle_name1=particle_inst_1.name,
                                           particle_name2=particle_inst_2.name,
                                           use_default_bond=use_default_bond)
-        # bond_inst = self._get_espresso_bond_instance(bond_template=bond_tpl,
-        #                                             espresso_system=espresso_system)
-        # espresso_system.part.by_id(particle_id1).add_bond((bond_inst, particle_id2))
         bond_id = self.db._propose_instance_id(pmb_type="bond")
         pmb_bond_instance = BondInstance(bond_id=bond_id,
                                          name=bond_tpl.name,
@@ -1091,17 +1060,14 @@ class pymbe_library():
             residue_list = molecule_tpl.residue_list
         pos_index = 0 
         molecule_ids = []
-        for _ in range(number_of_molecules):        
+        for n_mol in range(number_of_molecules):        
             molecule_id = self.db._propose_instance_id(pmb_type=pmb_type)
             for residue in residue_list:
                 if first_residue:
                     if list_of_first_residue_positions is None:
                         central_bead_pos = None
                     else:
-                        ### This seems like a bug 
-                        ### the variable central bead pos gets assigned the same value for the lengthh of list_of_first_residue_positions
-                        for item in list_of_first_residue_positions:
-                            central_bead_pos = [np.array(list_of_first_residue_positions[pos_index])]
+                        central_bead_pos = [np.array(list_of_first_residue_positions[n_mol])]
                             
                     residue_id = self.create_residue(name=residue,
                                                      box_l=box_l, 
@@ -1561,15 +1527,12 @@ class pymbe_library():
         if "phi_0" not in angle_parameters:
             raise ValueError("Equilibrium angle (phi_0) is missing")
 
-        parameters_tpl = {
-            "k": PintQuantity.from_quantity(q=angle_parameters["k"],
-                                            expected_dimension="energy",
-                                            ureg=self.units),
-            "phi_0": PintQuantity.from_quantity(q=angle_parameters["phi_0"],
-                                                expected_dimension="dimensionless",
-                                                ureg=self.units),
-        }
-
+        parameters_tpl = {"k": PintQuantity.from_quantity(q=angle_parameters["k"],
+                                                          expected_dimension="energy",
+                                                          ureg=self.units),
+                          "phi_0": PintQuantity.from_quantity(q=angle_parameters["phi_0"],
+                                                              expected_dimension="dimensionless",
+                                                              ureg=self.units),}
         angle_names = []
         for side1, central, side2 in particle_triplets:
             tpl = AngleTemplate(side_particle1=side1,
@@ -1597,20 +1560,16 @@ class pymbe_library():
         valid_angle_types = ["harmonic", "cosine", "harmonic_cosine"]
         if angle_type not in valid_angle_types:
             raise NotImplementedError(f"Angle potential type '{angle_type}' currently not implemented in pyMBE, accepted types are {valid_angle_types}")
-
         if "k" not in angle_parameters:
             raise ValueError("Magnitude of the angle potential (k) is missing")
         if "phi_0" not in angle_parameters:
             raise ValueError("Equilibrium angle (phi_0) is missing")
-
-        parameters_tpl = {
-            "k": PintQuantity.from_quantity(q=angle_parameters["k"],
-                                            expected_dimension="energy",
-                                            ureg=self.units),
-            "phi_0": PintQuantity.from_quantity(q=angle_parameters["phi_0"],
-                                                expected_dimension="dimensionless",
-                                                ureg=self.units),
-        }
+        parameters_tpl = {"k": PintQuantity.from_quantity(q=angle_parameters["k"],
+                                                          expected_dimension="energy",
+                                                          ureg=self.units),
+                         "phi_0": PintQuantity.from_quantity(q=angle_parameters["phi_0"],
+                                                             expected_dimension="dimensionless",
+                                                             ureg=self.units),}
         tpl = AngleTemplate(parameters=parameters_tpl,
                             angle_type=angle_type)
         tpl.name = "default"
@@ -1646,11 +1605,6 @@ class pymbe_library():
                                             central_name=particle_inst_2.name,
                                             side_name2=particle_inst_3.name,
                                             use_default_angle=use_default_angle)
-        # angle_inst = self._get_espresso_angle_instance(angle_template=angle_tpl, espresso_system=espresso_system)
-
-        # ESPResSo angle bonds are added to the central particle
-        # espresso_system.part.by_id(particle_id2).add_bond((angle_inst, particle_id1, particle_id3))
-
         angle_id = self.db._propose_instance_id(pmb_type="angle")
         pmb_angle_instance = AngleInstance(angle_id=angle_id,
                                            name=angle_tpl.name,
@@ -1693,13 +1647,7 @@ class pymbe_library():
         Returns:
             ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
         """
-        if isinstance(self.simulation_engine,EspressoSimulation):
-            angle_inst=self.simulation_engine._get_angle_instance(angle_template=angle_template)
-            return angle_inst
-        elif isinstance(self.simulation_engine,LammpsSimulation):
-            raise NotImplementedError('It has not yet been implemented for Lammps')
-        else:
-            raise RuntimeError('You have not set up any simulation engine yet')
+        return self.simulation_engine._get_angle_instance(angle_template=angle_template)
 
     def _create_espresso_angle_instance(self, angle_type, angle_parameters):
         """
@@ -2143,12 +2091,7 @@ class pymbe_library():
             - The rotational inertia tensor is approximated from the squared
             distances of the particles to the center of mass.
         """
-        if isinstance(self.simulation_engine,EspressoSimulation):
-            self.simulation_engine.enable_motion_of_rigid_object(instance_id, pmb_type)
-        elif isinstance(self.simulation_engine,LammpsSimulation):
-            raise NotImplementedError('In this current version LammpsSimulation is not yet implemented')
-        else:
-            raise RuntimeError('Please setup a currently working simulation engine')
+        self.simulation_engine.enable_motion_of_rigid_object(instance_id, pmb_type)
 
     def generate_coordinates_outside_sphere(self, center, radius, max_dist, n_samples):
         """
@@ -2466,8 +2409,7 @@ class pymbe_library():
                                        f"{unit_length.to('nm'):.5g} = {unit_length}",
                                        f"{unit_energy.to('J'):.5g} = {unit_energy}",
                                        f"{unit_charge.to('C'):.5g} = {unit_charge}",
-                                       f"Temperature: {(self.kT/self.kB).to('K'):.5g}"
-                                        ])   
+                                       f"Temperature: {(self.kT/self.kB).to('K'):.5g}"])   
         return reduced_units_text
 
     def get_templates_df(self, pmb_type):
@@ -2538,7 +2480,6 @@ class pymbe_library():
                                             folder=folder)
         return metadata
         
-    
     def load_pka_set(self, filename):
         """
         Load a pKa set and attach chemical states and acid–base reactions
@@ -2579,8 +2520,7 @@ class pymbe_library():
         Returns:
             ('int'): 
                 The next available integer ESPResSo type. Returns ''0'' if no integer types are currently defined.
-        """
-        
+        """    
         return self.db.propose_unused_type()
        
     def read_protein_vtf(self, filename, unit_length=None):
@@ -2764,10 +2704,8 @@ class pymbe_library():
         Args:
             simulation_engine (Any): object which contains the methods to setup molecular dynamics and montecarlo simulations
             box_l('list[float,float,float]'): list of floats with the dimensions of the box
-
-        Raises:
-            ValueError: _description_
         """
+
         if isinstance(simulation_engine,EspressoSystemProtocolversion422) or isinstance(simulation_engine,EspressoSystemProtocolversion501):
             self.simulation_engine=EspressoSimulation(box_l=simulation_engine.box_l,
                                                       db=self.db,
@@ -2809,7 +2747,6 @@ class pymbe_library():
             ('reaction_methods.ConstantpHEnsemble'): 
                 Instance of a reaction_methods.ConstantpHEnsemble object from the espressomd library.
         """
-
        
         RE = self.simulation_engine.setup_cpH(counter_ion=counter_ion, 
                                         constant_pH=constant_pH, 
@@ -2845,7 +2782,6 @@ class pymbe_library():
             ('reaction_methods.ReactionEnsemble'): 
                 Instance of a reaction_methods.ReactionEnsemble object from the espressomd library.
         """
-
         RE = self.simulation_engine.setup_gcmc(c_salt_res=c_salt_res, 
                                                 salt_anion_name=salt_anion_name, 
                                                 salt_cation_name=salt_cation_name, 
@@ -2854,7 +2790,6 @@ class pymbe_library():
                                                 use_exclusion_radius_per_type = use_exclusion_radius_per_type)
         return RE
         
-
     def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
         Sets up acid/base reactions for acidic/basic monoprotic particles defined in the pyMBE database, 
@@ -2903,8 +2838,7 @@ class pymbe_library():
             - This implementation uses the original formulation of the grand-reaction method by Landsgesell et al. [1].
 
         [1] Landsgesell, J., Hebbeker, P., Rud, O., Lunkad, R., Košovan, P., & Holm, C. (2020). Grand-reaction method for simulations of ionization equilibria coupled to ion partitioning. Macromolecules, 53(8), 3007-3020.
-        """
-        
+        """     
         output=self.simulation_engine.setup_grxmc_reactions(pH_res=pH_res, 
                                                             c_salt_res=c_salt_res, 
                                                             proton_name=proton_name, 
@@ -2960,18 +2894,15 @@ class pymbe_library():
 
         [1] Curk, T., Yuan, J., & Luijten, E. (2022). Accelerated simulation method for charge regulation effects. The Journal of Chemical Physics, 156(4).
         [2] Landsgesell, J., Hebbeker, P., Rud, O., Lunkad, R., Košovan, P., & Holm, C. (2020). Grand-reaction method for simulations of ionization equilibria coupled to ion partitioning. Macromolecules, 53(8), 3007-3020.
-        """
-        
+        """       
         output=self.simulation_engine.setup_grxmc_unified(pH_res=pH_res, 
-                                                                              c_salt_res=c_salt_res, 
-                                                                              cation_name=cation_name, 
-                                                                              anion_name=anion_name, 
-                                                                              activity_coefficient=activity_coefficient, 
-                                                                              exclusion_range=exclusion_range, 
-                                                                              use_exclusion_radius_per_type = use_exclusion_radius_per_type)
+                                                         c_salt_res=c_salt_res, 
+                                                         cation_name=cation_name, 
+                                                         anion_name=anion_name, 
+                                                         activity_coefficient=activity_coefficient, 
+                                                         exclusion_range=exclusion_range, 
+                                                         use_exclusion_radius_per_type = use_exclusion_radius_per_type)
         return output
-        
-            
 
     def setup_lj_interactions(self, shift_potential=True, combining_rule='Lorentz-Berthelot'):
         """

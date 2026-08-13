@@ -19,8 +19,8 @@ class Test(ut.TestCase):
     def test_missing_simulation_engine(self):
         with self.assertRaises(ValueError):
             pmb.set_simulation_engine(simulation_engine=None,box_l=box_l)
-    def test_instantiation_lammps_engine(self):
+    def test_lammps_engine_not_implemented(self):
         with self.assertRaises(NotImplementedError):
-            pmb.set_simulation_engine(simulation_engine=lammps_engine,box_l=box_l)
+            lammps_engine.setup_lj_interactions()
 if __name__=='__main__':
     ut.main()
